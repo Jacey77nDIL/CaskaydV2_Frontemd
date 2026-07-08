@@ -1,0 +1,253 @@
+@import "tailwindcss";
+
+:root {
+  --background: #1d0b34;
+  --foreground: #ededed;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-playfair);
+  --font-mono: var(--font-geist-mono);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* ============================================
+   Caskayd — Full-Page Orange Horizon
+   ============================================ */
+
+/* The original orange horizon gradient stretched across the whole page */
+.page-wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: linear-gradient(
+    180deg,
+    #1d0b34 0%,
+    #4d1266 30%,
+    #d14d1a 55%,
+    #f79e22 70%,
+    #ffda73 85%,
+    #f79e22 92%,
+    #d14d1a 100%
+  );
+  background-attachment: fixed;
+}
+
+/* Fixed background canvas — sun, flare, glow, mountains */
+.bg-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* Layer 2: Sun Orb — gentle pulse animation */
+@keyframes sun-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.95; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+.sun-orb {
+  position: absolute;
+  bottom: 10%;
+  right: 15%;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 253, 230, 0.7) 25%,
+    rgba(247, 158, 34, 0.35) 55%,
+    transparent 100%
+  );
+  filter: blur(3px);
+  z-index: 2;
+  animation: sun-pulse 6s ease-in-out infinite;
+}
+
+/* Layer 2: Horizon Lens Flare — contained inside canvas, no overflow */
+.horizon-lens-flare {
+  position: absolute;
+  bottom: 20%;
+  left: 0;
+  width: 100%;
+  height: 20px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0.45) 20%,
+    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0.45) 80%,
+    transparent 100%
+  );
+  filter: blur(6px);
+  transform: rotate(-0.5deg);
+  z-index: 2;
+}
+
+/* Layer 3: Ambient Left Glow */
+.glow-left {
+  position: absolute;
+  top: 8%;
+  left: -10%;
+  width: 600px;
+  height: 350px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(77, 18, 102, 0.35) 0%,
+    rgba(209, 77, 26, 0.08) 50%,
+    transparent 100%
+  );
+  filter: blur(70px);
+  z-index: 1;
+}
+
+/* Layer 4: Mountain Range Container */
+.mountain-range {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 38vh;
+  min-height: 240px;
+}
+
+/* Mountain sway animations */
+@keyframes peaks-sway-slow {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+}
+
+@keyframes peaks-sway-mid {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-4px); }
+}
+
+@keyframes peaks-sway-fg {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(2px); }
+}
+
+/* Distant Background Peaks */
+.peaks-bg {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, #b03e1b, #4a1525);
+  opacity: 0.55;
+  z-index: 3;
+  animation: peaks-sway-slow 20s ease-in-out infinite;
+  clip-path: polygon(
+    0% 82%, 5% 74%, 10% 78%, 16% 70%, 22% 76%,
+    28% 64%, 35% 72%, 42% 66%, 50% 58%,
+    58% 68%, 65% 62%, 72% 70%, 78% 54%,
+    84% 65%, 90% 58%, 95% 64%, 100% 56%,
+    100% 100%, 0% 100%
+  );
+}
+
+/* Mid-ground High Peaks */
+.peaks-mid {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 88%;
+  background: linear-gradient(to bottom, #491520, #200910);
+  z-index: 4;
+  animation: peaks-sway-mid 16s ease-in-out infinite;
+  clip-path: polygon(
+    0% 86%, 6% 68%, 12% 52%, 18% 65%, 24% 72%,
+    30% 58%, 36% 42%, 42% 60%, 48% 74%,
+    54% 62%, 60% 50%, 66% 68%, 72% 76%,
+    78% 55%, 84% 46%, 90% 62%, 96% 56%, 100% 60%,
+    100% 100%, 0% 100%
+  );
+}
+
+/* Closest Foreground Slopes */
+.peaks-fg {
+  position: absolute;
+  bottom: -1px;
+  width: 100%;
+  height: 58%;
+  background: linear-gradient(to bottom, #2a0e1a, #1a0815);
+  z-index: 5;
+  animation: peaks-sway-fg 12s ease-in-out infinite;
+  clip-path: polygon(
+    0% 88%, 8% 78%, 16% 84%, 24% 72%, 32% 82%,
+    40% 70%, 50% 66%, 60% 78%, 68% 72%,
+    76% 80%, 84% 68%, 92% 76%, 100% 86%,
+    100% 100%, 0% 100%
+  );
+}
+
+/* Section overlay — dark glass on top of the orange for readability */
+.section-overlay {
+  background: rgba(20, 8, 30, 0.8);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+}
+
+/* Feature cards */
+.feature-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 768px) {
+  .sun-orb {
+    width: 120px;
+    height: 120px;
+    right: 10%;
+    bottom: 12%;
+  }
+
+  .mountain-range {
+    height: 25vh;
+    min-height: 160px;
+  }
+
+  .glow-left {
+    width: 300px;
+    height: 150px;
+    left: -5%;
+  }
+}
