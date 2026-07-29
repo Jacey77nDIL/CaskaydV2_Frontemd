@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+
 export default function Home() {
   const router = useRouter();
   const placeholders = [
