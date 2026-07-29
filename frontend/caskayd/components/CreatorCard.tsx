@@ -73,7 +73,6 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
     setLoadingCampaigns(true);
     setCampaignError(null);
     try {
-      // Swapped to fetchWithAuth
       const res = await fetchWithAuth("/api/campaigns");
       if (!res.ok) throw new Error("Failed to load campaigns");
       
@@ -93,7 +92,6 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
     setSuccessMsg(null);
 
     try {
-      // Swapped to fetchWithAuth
       const res = await fetchWithAuth(`/api/campaigns/${campaignId}/creators`, {
         method: "POST",
         body: JSON.stringify({ creatorId: creator.id }),
@@ -120,7 +118,6 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
   const handleSaveToFavorites = async () => {
     setIsSaving(true);
     try {
-      // Swapped to fetchWithAuth
       const res = await fetchWithAuth("/api/saved-creators", {
         method: "POST",
         body: JSON.stringify({ creatorId: creator.id }),
@@ -175,35 +172,42 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
 
         <div className="p-4 flex flex-col flex-grow">
           <div className="flex items-center gap-1.5 mb-4 flex-wrap">
-            <h3 className="font-bold text-gray-900 text-lg">{creator.name}</h3>
+            <h3 className="font-bold text-gray-900 text-lg leading-tight">{creator.name}</h3>
             {creator.verified && (
               <svg className="w-4 h-4 text-green-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
             )}
-            <span className="text-gray-400 font-light text-sm ml-1">• {creator.niche}</span>
+            <span className="text-gray-400 font-light text-xs ml-1">• {creator.niche}</span>
           </div>
 
           {currentStats ? (
-            <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-sm mb-5 animate-in fade-in duration-300">
-              <div>
-                <span className="text-gray-400 text-xs">Handle:</span>{" "}
-                <span className="font-semibold text-gray-800 break-all">
+            <div className="flex flex-col gap-3 mb-5 animate-in fade-in duration-300">
+              
+              {/* Row 1: Handle gets full width */}
+              <div className="flex flex-col bg-gray-50/50 p-2 rounded-lg border border-gray-100">
+                <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-0.5">Handle</span>
+                <span className="font-semibold text-gray-800 text-xs truncate w-full" title={currentStats.handle !== "N/A" ? `@${currentStats.handle}` : "N/A"}>
                   {currentStats.handle !== "N/A" ? `@${currentStats.handle}` : "N/A"}
                 </span>
               </div>
-              <div>
-                <span className="text-gray-400 text-xs">Followers:</span>{" "}
-                <span className="font-semibold text-gray-800">{currentStats.followers}</span>
+
+              {/* Row 2: Grid for the rest */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="flex flex-col">
+                  <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-0.5">Followers</span>
+                  <span className="font-semibold text-gray-800 text-xs truncate">{currentStats.followers}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-0.5">Location</span>
+                  <span className="font-semibold text-gray-800 text-xs truncate" title={creator.location}>{creator.location}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-0.5">Gender</span>
+                  <span className="font-semibold text-gray-800 text-xs capitalize truncate">{creator.gender}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-gray-400 text-xs">Location:</span>{" "}
-                <span className="font-semibold text-gray-800">{creator.location}</span>
-              </div>
-              <div>
-                <span className="text-gray-400 text-xs">Gender:</span>{" "}
-                <span className="font-semibold text-gray-800 capitalize">{creator.gender}</span>
-              </div>
+
             </div>
           ) : (
             <div className="text-sm text-gray-400 mb-5 italic">Stats unavailable for this platform.</div>
@@ -253,7 +257,6 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
             className="bg-white border border-gray-200 rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden flex flex-col max-h-[80vh]"
             onClick={(e) => e.stopPropagation()} 
           >
-            {/* Top Left Close Button */}
             <button 
               onClick={() => setIsCampaignModalOpen(false)}
               className="absolute top-4 left-4 p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors z-10 cursor-pointer"

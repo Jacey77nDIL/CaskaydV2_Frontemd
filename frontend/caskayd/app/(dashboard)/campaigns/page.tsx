@@ -119,6 +119,34 @@ export default function CampaignsPage() {
     }
   };
 
+  // NEW: Delete Entire Campaign Function
+  const handleDeleteCampaign = async () => {
+    if (!activeCampaignId) return;
+    if (!confirm("Are you sure you want to delete this entire campaign folder? This action cannot be undone.")) return;
+
+    try {
+      const res = await fetchWithAuth(`/api/campaigns/${activeCampaignId}`, {
+        method: "DELETE",
+      });
+      
+      if (!res.ok) throw new Error("Failed to delete campaign");
+
+      // Filter it out of the local state
+      const updatedCampaigns = campaigns.filter(c => (c.id || (c as any)._id) !== activeCampaignId);
+      setCampaigns(updatedCampaigns);
+
+      // Select another campaign or clear
+      if (updatedCampaigns.length > 0) {
+        setActiveCampaignId(updatedCampaigns[0].id || (updatedCampaigns[0] as any)._id);
+      } else {
+        setActiveCampaignId("");
+        setCreators([]);
+      }
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const handleStatusChange = async (creatorId: string, newStatus: CampaignStatus) => {
     setCreators((prev) =>
       prev.map((c) => (c.id === creatorId ? { ...c, status: newStatus } : c))
@@ -195,23 +223,36 @@ export default function CampaignsPage() {
             {loading ? (
               <span className="text-sm text-gray-400">Loading...</span>
             ) : campaigns.length > 0 ? (
-              <div className="relative inline-block w-64">
-                <select 
-                  value={activeCampaignId}
-                  onChange={(e) => setActiveCampaignId(e.target.value)}
-                  className="w-full appearance-none bg-white border border-gray-200 text-gray-900 font-semibold text-sm rounded-xl px-4 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-[#ff6b35]/20 focus:border-[#ff6b35] transition-all shadow-sm cursor-pointer"
-                >
-                  {campaigns.map(camp => (
-                    <option key={camp.id || (camp as any)._id} value={camp.id || (camp as any)._id}>
-                      {camp.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+              <div className="flex items-center gap-2">
+                <div className="relative inline-block w-64">
+                  <select 
+                    value={activeCampaignId}
+                    onChange={(e) => setActiveCampaignId(e.target.value)}
+                    className="w-full appearance-none bg-white border border-gray-200 text-gray-900 font-semibold text-sm rounded-xl px-4 py-2.5 pr-10 focus:outline-none focus:ring-2 focus:ring-[#ff6b35]/20 focus:border-[#ff6b35] transition-all shadow-sm cursor-pointer"
+                  >
+                    {campaigns.map(camp => (
+                      <option key={camp.id || (camp as any)._id} value={camp.id || (camp as any)._id}>
+                        {camp.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
                 </div>
+                
+                {/* NEW: Delete Campaign Button */}
+                <button 
+                  onClick={handleDeleteCampaign}
+                  className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-xl transition-all cursor-pointer"
+                  title="Delete Folder"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
             ) : (
               <span className="text-sm text-gray-400 italic">No campaigns found</span>
@@ -222,7 +263,7 @@ export default function CampaignsPage() {
         <div className="flex gap-3">
           <button 
             onClick={() => setIsCampaignModalOpen(true)}
-            className="bg-[#ff6b35] text-white hover:bg-[#e05a2b] font-semibold px-5 py-2.5 rounded-xl transition-all shadow-md cursor-pointer text-sm"
+            className="bg-[#ff6b35] text-white hover:bg-[#e05a2b] font-semibold px-5 py-2.5 rounded-xl transition-all shadow-md cursor-pointer text-sm whitespace-nowrap"
           >
             + New Campaign
           </button>

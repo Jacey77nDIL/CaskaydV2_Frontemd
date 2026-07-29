@@ -57,19 +57,19 @@ export default function Login() {
   };
 
   return (
-    <div className="relative w-full min-h-screen overflow-hidden bg-gradient-to-b from-[#1d0b34] via-[#4d1266] via-[#d14d1a] via-[#f79e22] to-[#ffda73] font-sans">
+    <div className="relative w-full min-h-screen overflow-hidden bg-linear-to-b from-[#1d0b34] via-[#4d1266] via-[#d14d1a] via-[#f79e22] to-[#ffda73] font-sans">
       {/* Background Layers */}
-      <div className="absolute bottom-[8%] right-[15%] w-[220px] h-[220px] rounded-full bg-radial from-white via-[#fffde6]/95 via-[#f79e22]/40 to-transparent blur-[4px] z-10"></div>
-      <div className="absolute bottom-[18%] left-[-25%] w-[150%] h-[24px] bg-gradient-to-r from-transparent via-white/60 via-white/60 to-transparent blur-[8px] -rotate-[0.5deg] z-10"></div>
-      <div className="absolute top-[10%] left-[-20%] w-[800px] h-[400px] rounded-full bg-radial from-[#4d1266]/40 via-[#d14d1a]/10 to-transparent blur-[80px] z-0"></div>
+      <div className="absolute bottom-[8%] right-[15%] w-55 h-55 rounded-full bg-radial from-white via-[#fffde6]/95 via-[#f79e22]/40 to-transparent blur-[4px] z-10"></div>
+      <div className="absolute bottom-[18%] left-[-25%] w-[150%] h-6 bg-linear-to-r from-transparent via-white/60 via-white/60 to-transparent blur-[8px] -rotate-[0.5deg] z-10"></div>
+      <div className="absolute top-[10%] left-[-20%] w-200 h-100 rounded-full bg-radial from-[#4d1266]/40 via-[#d14d1a]/10 to-transparent blur-[80px] z-0"></div>
 
-      <div className="absolute bottom-0 left-0 w-full h-[35vh] min-h-[220px] pointer-events-none">
+      <div className="absolute bottom-0 left-0 w-full h-[35vh] min-h-55 pointer-events-none">
         <div 
-          className="absolute bottom-0 w-full h-full bg-gradient-to-b from-[#b03e1b] to-[#4a1525] opacity-65 z-20"
+          className="absolute bottom-0 w-full h-full bg-linear-to-b from-[#b03e1b] to-[#4a1525] opacity-65 z-20"
           style={{ clipPath: "polygon(0% 80%, 8% 68%, 18% 78%, 28% 62%, 42% 75%, 55% 58%, 68% 72%, 78% 52%, 88% 68%, 100% 55%, 100% 100%, 0% 100%)" }}
         ></div>
         <div 
-          className="absolute bottom-0 w-full h-[90%] bg-gradient-to-b from-[#591b19] to-[#260914] z-25"
+          className="absolute bottom-0 w-full h-[90%] bg-linear-to-b from-[#591b19] to-[#260914] z-25"
           style={{ clipPath: "polygon(0% 85%, 12% 50%, 22% 70%, 35% 40%, 48% 75%, 62% 60%, 72% 78%, 85% 45%, 94% 65%, 100% 58%, 100% 100%, 0% 100%)" }}
         ></div>
         <div 
