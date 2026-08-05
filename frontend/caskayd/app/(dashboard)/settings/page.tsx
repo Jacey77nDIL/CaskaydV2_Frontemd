@@ -117,7 +117,6 @@ export default function SettingsPage() {
 
       const data = await res.json();
       
-      // Look for the specific 'paymentLink' property the backend is now returning!
       const checkoutUrl = data.paymentLink || data.paymentUrl || data.link || data.data?.link;
       
       if (checkoutUrl) {
@@ -131,22 +130,23 @@ export default function SettingsPage() {
     }
   };
 
-  // --- API Function: Cancel Subscription ---
-  const handleCancelSubscription = async () => {
-    if (!confirm("Are you sure you want to cancel your subscription? You will lose premium access when your current billing cycle ends.")) return;
+  // --- API Function: Pause Subscription ---
+  const handlePauseSubscription = async () => {
+    if (!confirm("Are you sure you want to pause your subscription? You will lose premium access when your current billing cycle ends.")) return;
     
-    setSubMsg({ type: "success", text: "Cancelling subscription..." });
+    setSubMsg({ type: "success", text: "Pausing subscription..." });
     try {
+      // It hits the /cancel endpoint on the backend to stop auto-renewal
       const res = await fetchWithAuth("/api/subscriptions/cancel", {
         method: "POST",
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Failed to cancel subscription.");
+        throw new Error(data.message || "Failed to pause subscription.");
       }
       
-      setSubMsg({ type: "success", text: "Subscription successfully cancelled." });
+      setSubMsg({ type: "success", text: "Subscription successfully paused." });
       setTimeout(() => window.location.reload(), 1500);
     } catch (err: any) {
       setSubMsg({ type: "error", text: err.message });
@@ -306,17 +306,27 @@ export default function SettingsPage() {
                 <div>
                   <p className="font-semibold text-gray-900 text-sm capitalize">{currentSub.plan.toLowerCase()} Plan</p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {currentSub.autoRenew ? "Active — Renews automatically" : "Cancels at the end of billing period"}
+                    {currentSub.autoRenew ? "Active — Renews automatically" : "Pause at the end of billing period"}
                   </p>
                 </div>
-                {currentSub.autoRenew && (
+                
+                {/* Always show the button so the UI matches the design, just disabled if already paused */}
+                {currentSub.autoRenew ? (
                   <button 
-                    onClick={handleCancelSubscription}
+                    onClick={handlePauseSubscription}
                     className="bg-white text-red-600 border border-red-200 hover:bg-red-50 font-semibold px-5 py-2 rounded-lg transition-all text-sm cursor-pointer"
                   >
-                    Cancel Subscription
+                    Pause Subscription
+                  </button>
+                ) : (
+                  <button 
+                    disabled
+                    className="bg-gray-100 text-gray-400 border border-gray-200 font-semibold px-5 py-2 rounded-lg text-sm cursor-not-allowed"
+                  >
+                    Subscription Paused
                   </button>
                 )}
+
               </div>
             </>
           ) : (
@@ -326,7 +336,6 @@ export default function SettingsPage() {
               </p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Updated the fallback array to match the backend's new "INDIVIDUAL" and "TEAM" Enums */}
                 {(plans.length > 0 ? plans : [
                   { plan: "INDIVIDUAL", amount: 7500, desc: "For independent marketers" }, 
                   { plan: "TEAM", amount: 25000, desc: "For scaling agencies" }
