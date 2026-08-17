@@ -49,13 +49,38 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Swapped to fetchWithAuth so it uses the env variable automatically
-        const res = await fetchWithAuth("/api/dashboard");
+        const res = await fetchWithAuth("/api/dashboard", {
+          method: "GET",
+        });
 
-        if (!res.ok) throw new Error("Failed to load dashboard metrics.");
+        // Unpack the exact NestJS validation error
+        if (!res.ok) {
+          const errorText = await res.text();
+          let backendMsg = res.statusText;
+          
+          try {
+            const errorData = JSON.parse(errorText);
+            
+            if (errorData?.error?.message) {
+              backendMsg = Array.isArray(errorData.error.message) 
+                ? errorData.error.message.join(", ") 
+                : errorData.error.message;
+            } else if (errorData?.message) {
+              backendMsg = Array.isArray(errorData.message) 
+                ? errorData.message.join(", ") 
+                : errorData.message;
+            } else {
+              backendMsg = JSON.stringify(errorData);
+            }
+          } catch (parseErr) {
+            backendMsg = errorText || "Unknown error occurred";
+          }
+          
+          throw new Error(`Backend Error: ${backendMsg}`);
+        }
 
         const apiData = await res.json();
         
@@ -68,7 +93,7 @@ export default function DashboardPage() {
         });
       } catch (err: any) {
         console.error("Dashboard error:", err);
-        setError("Could not load your latest metrics.");
+        setError(err.message || "Could not load your latest metrics.");
       } finally {
         setLoading(false);
       }

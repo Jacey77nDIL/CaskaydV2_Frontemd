@@ -56,7 +56,26 @@ export default function CampaignsPage() {
     setLoading(true);
     try {
       const res = await fetchWithAuth("/api/campaigns");
-      if (!res.ok) throw new Error("Failed to load campaigns");
+      
+      // Unpack the exact NestJS validation error if it fails
+      if (!res.ok) {
+        const errorText = await res.text();
+        let backendMsg = res.statusText;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData?.error?.message) {
+            backendMsg = Array.isArray(errorData.error.message) ? errorData.error.message.join(", ") : errorData.error.message;
+          } else if (errorData?.message) {
+            backendMsg = Array.isArray(errorData.message) ? errorData.message.join(", ") : errorData.message;
+          } else {
+            backendMsg = JSON.stringify(errorData);
+          }
+        } catch (parseErr) {
+          backendMsg = errorText || "Unknown error occurred";
+        }
+        throw new Error(`Backend Error: ${backendMsg}`);
+      }
       
       const data = await res.json();
       const campaignList = Array.isArray(data) ? data : (data.data || []);
@@ -66,6 +85,7 @@ export default function CampaignsPage() {
         setActiveCampaignId(campaignList[0].id || campaignList[0]._id);
       }
     } catch (err: any) {
+      console.error("Campaign API Error:", err);
       setError(err.message);
     } finally {
       setLoading(false);

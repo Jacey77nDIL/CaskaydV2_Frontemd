@@ -204,21 +204,52 @@ export default function SearchPage() {
     };
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
+
+const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
 
     setIsSearching(true);
     setHasSearched(true);
-    setAllResults([]); // Clear previous results while loading new ones
+    setAllResults([]);
+    setResults([]);
     setError(null);
 
     try {
       const url = new URL("/api/search", process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000");
       url.searchParams.append("query", query);
 
-      const res = await fetchWithAuth(url.toString());
-      if (!res.ok) throw new Error("Failed to fetch creators.");
+      const res = await fetchWithAuth(url.toString(), {
+        method: "GET",
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        let backendMsg = res.statusText;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          
+          // Unpack the custom error format from your global-exception.filter.ts
+          if (errorData?.error?.message) {
+            backendMsg = Array.isArray(errorData.error.message) 
+              ? errorData.error.message.join(", ") 
+              : errorData.error.message;
+          } 
+          // Fallback to standard NestJS format
+          else if (errorData?.message) {
+            backendMsg = Array.isArray(errorData.message) 
+              ? errorData.message.join(", ") 
+              : errorData.message;
+          } else {
+            backendMsg = JSON.stringify(errorData);
+          }
+        } catch (parseErr) {
+          backendMsg = errorText || "Unknown error occurred";
+        }
+        
+        throw new Error(backendMsg);
+      }
 
       const data = await res.json();
       const creatorList = Array.isArray(data) ? data : (data.data || []);
@@ -226,7 +257,8 @@ export default function SearchPage() {
       
       setAllResults(formattedResults);
     } catch (err: any) {
-      setError(err.message || "An error occurred while searching.");
+      console.error("Search API Error:", err);
+      setError(`Backend Error: ${err.message}`);
     } finally {
       setIsSearching(false);
     }

@@ -10,7 +10,6 @@ export default function FavoritesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-
   const formatFollowers = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
     if (num >= 1000) return (num / 1000).toFixed(1) + "k";
@@ -59,11 +58,26 @@ export default function FavoritesPage() {
 
   const fetchFavorites = async () => {
     try {
-      
-
       const res = await fetchWithAuth("/api/saved-creators");
 
-      if (!res.ok) throw new Error("Failed to load saved creators.");
+      // Unpack the exact NestJS validation error if it fails
+      if (!res.ok) {
+        const errorText = await res.text();
+        let backendMsg = res.statusText;
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData?.error?.message) {
+            backendMsg = Array.isArray(errorData.error.message) ? errorData.error.message.join(", ") : errorData.error.message;
+          } else if (errorData?.message) {
+            backendMsg = Array.isArray(errorData.message) ? errorData.message.join(", ") : errorData.message;
+          } else {
+            backendMsg = JSON.stringify(errorData);
+          }
+        } catch (parseErr) {
+          backendMsg = errorText || "Unknown error occurred";
+        }
+        throw new Error(`Backend Error: ${backendMsg}`);
+      }
 
       const data = await res.json();
       const creatorList = Array.isArray(data) ? data : (data.data || []);
@@ -82,7 +96,6 @@ export default function FavoritesPage() {
     setFavorites((prev) => prev.filter((c) => c.id !== creatorId));
 
     try {
-     
       const res = await fetchWithAuth(`/api/saved-creators/${creatorId}`, { method: "DELETE" });
 
       if (!res.ok) {
@@ -119,7 +132,7 @@ export default function FavoritesPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 justify-items-start animate-in fade-in duration-500">
           {favorites.map((creator) => (
-            <div key={creator.id} className="relative group w-full max-w-75">
+            <div key={creator.id} className="relative group w-full max-w-[300px]">
               <CreatorCard creator={creator} />
               
               {/* Unsave / Remove Button overlay */}
