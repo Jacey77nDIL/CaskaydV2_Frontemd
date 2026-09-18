@@ -5,6 +5,17 @@ import React, { useState, useEffect, useRef } from "react";
 import CreatorCard, { Creator, PlatformStats } from "../../../components/CreatorCard";
 import { fetchWithAuth } from "@/lib/api";
 
+const NIGERIAN_STATES = [
+  "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno", 
+  "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT - Abuja", "Gombe", 
+  "Imo", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara", "Lagos", 
+  "Nasarawa", "Niger", "Ogun", "Ondo", "Osun", "Oyo", "Plateau", "Rivers", "Sokoto", 
+  "Taraba", "Yobe", "Zamfara"
+];
+
+// Extend the Creator interface locally to hold the raw state strictly for filtering
+type FilterableCreator = Creator & { rawState?: string };
+
 // --- Skeleton Loader ---
 const SkeletonCard = () => (
   <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm w-full max-w-[300px] animate-pulse">
@@ -35,7 +46,6 @@ function CustomFilterDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown if clicked outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -47,13 +57,13 @@ function CustomFilterDropdown({
   }, []);
 
   return (
-    <div ref={dropdownRef} className="relative">
+    <div ref={dropdownRef} className="relative w-full md:w-auto">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between min-w-[140px] bg-white border border-gray-200 text-gray-700 text-xs font-semibold rounded-xl px-4 py-2.5 hover:border-gray-300 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-[#ff6b35]/20 focus:border-[#ff6b35] cursor-pointer"
+        className="w-full flex items-center justify-between bg-white border border-gray-200 text-gray-700 text-xs font-semibold rounded-xl px-3 md:px-4 py-2.5 hover:border-gray-300 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-[#ff6b35]/20 focus:border-[#ff6b35] cursor-pointer md:min-w-[130px]"
       >
-        {value}
+        <span className="truncate">{value}</span>
         <span className="text-[10px] opacity-70 ml-2">▼</span>
       </button>
 
@@ -82,6 +92,104 @@ function CustomFilterDropdown({
   );
 }
 
+// --- Searchable Filter Dropdown UI ---
+function SearchableFilterDropdown({
+  value,
+  options,
+  onChange,
+  defaultOption,
+}: {
+  value: string;
+  options: string[];
+  onChange: (val: string) => void;
+  defaultOption: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredOptions = options.filter((opt) =>
+    opt.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div ref={dropdownRef} className="relative w-full md:w-auto">
+      <button
+        type="button"
+        onClick={() => {
+          setIsOpen(!isOpen);
+          if (!isOpen) setSearchTerm("");
+        }}
+        className="w-full flex items-center justify-between bg-white border border-gray-200 text-gray-700 text-xs font-semibold rounded-xl px-3 md:px-4 py-2.5 hover:border-gray-300 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-[#ff6b35]/20 focus:border-[#ff6b35] cursor-pointer md:min-w-[130px]"
+      >
+        <span className="truncate">{value}</span>
+        <span className="text-[10px] opacity-70 ml-2">▼</span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1.5 w-[200px] bg-white border border-gray-100 shadow-xl rounded-xl overflow-hidden z-30 animate-in fade-in slide-in-from-top-1 duration-200 flex flex-col max-h-[300px]">
+          <div className="p-2 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <input
+              type="text"
+              placeholder="Search states..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#ff6b35]/20 focus:border-[#ff6b35]"
+              autoFocus
+            />
+          </div>
+          <div className="overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => {
+                onChange(defaultOption);
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-4 py-3 text-xs transition-colors cursor-pointer ${
+                value === defaultOption
+                  ? "bg-gray-50 text-[#ff6b35] font-bold"
+                  : "text-gray-700 hover:bg-gray-50 hover:text-[#ff6b35] font-medium"
+              }`}
+            >
+              {defaultOption}
+            </button>
+            {filteredOptions.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => {
+                  onChange(opt);
+                  setIsOpen(false);
+                }}
+                className={`w-full text-left px-4 py-3 text-xs transition-colors cursor-pointer ${
+                  value === opt
+                    ? "bg-gray-50 text-[#ff6b35] font-bold"
+                    : "text-gray-700 hover:bg-gray-50 hover:text-[#ff6b35] font-medium"
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+            {filteredOptions.length === 0 && (
+              <div className="px-4 py-3 text-xs text-gray-400">No states found.</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- Main Page Component ---
 export default function SearchPage() {
   const [query, setQuery] = useState("");
@@ -90,27 +198,14 @@ export default function SearchPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Raw API results & Display results
-  const [allResults, setAllResults] = useState<Creator[]>([]);
-  const [results, setResults] = useState<Creator[]>([]);
+  const [allResults, setAllResults] = useState<FilterableCreator[]>([]);
+  const [results, setResults] = useState<FilterableCreator[]>([]);
 
   // Filter States
   const [genderFilter, setGenderFilter] = useState("Any Gender");
   const [followerFilter, setFollowerFilter] = useState("Followers (Any)");
   const [platformFilter, setPlatformFilter] = useState("All Platforms");
-
-  // Dynamic filter visibility logic based on user input
-  const showGenderFilter = !/(male|female|men|women|boy|girl)/i.test(query);
-  const showFollowerFilter = !/(\d+k|\d+m|thousand|million)/i.test(query);
-  const showPlatformFilter = !/(instagram|ig|tiktok|tk)/i.test(query);
-  
-  const shouldShowFiltersBar = query.trim().length > 0 && (showGenderFilter || showFollowerFilter || showPlatformFilter);
-
-  // Auto-reset filters if the smart search hides them
-  useEffect(() => {
-    if (!showGenderFilter) setGenderFilter("Any Gender");
-    if (!showFollowerFilter) setFollowerFilter("Followers (Any)");
-    if (!showPlatformFilter) setPlatformFilter("All Platforms");
-  }, [showGenderFilter, showFollowerFilter, showPlatformFilter]);
+  const [stateFilter, setStateFilter] = useState("All States");
 
   // --- LIVE CLIENT-SIDE FILTERING ENGINE ---
   useEffect(() => {
@@ -130,7 +225,6 @@ export default function SearchPage() {
     // 3. Filter by Followers
     if (followerFilter !== "Followers (Any)") {
       filtered = filtered.filter((c) => {
-        // If a specific platform is selected, check that platform. Otherwise, check max followers across all.
         const platformsToCheck = platformFilter !== "All Platforms"
             ? [platformFilter.toLowerCase()]
             : Object.keys(c.stats);
@@ -156,9 +250,16 @@ export default function SearchPage() {
       });
     }
 
-    setResults(filtered);
-  }, [allResults, genderFilter, platformFilter, followerFilter]);
+    // 4. Filter by State
+    if (stateFilter !== "All States") {
+      filtered = filtered.filter((c) => 
+        c.rawState?.toLowerCase() === stateFilter.toLowerCase() || 
+        c.location.toLowerCase().includes(stateFilter.toLowerCase())
+      );
+    }
 
+    setResults(filtered);
+  }, [allResults, genderFilter, platformFilter, followerFilter, stateFilter]);
 
   const formatFollowers = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
@@ -166,7 +267,7 @@ export default function SearchPage() {
     return num.toString();
   };
 
-  const transformApiToCreator = (apiItem: any): Creator => {
+  const transformApiToCreator = (apiItem: any): FilterableCreator => {
     const creatorData = apiItem.creator || apiItem;
     const stats: any = {};
     let isVerified = false;
@@ -195,6 +296,7 @@ export default function SearchPage() {
         ? creatorData.primaryNiche 
         : "Creator",
       location: locationString,
+      rawState: creatorData.state, 
       gender: creatorData.gender || "Unspecified",
       imageUrl: creatorData.profileImage || fallbackImage,
       verified: isVerified,
@@ -204,8 +306,7 @@ export default function SearchPage() {
     };
   };
 
-
-const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
 
@@ -229,15 +330,11 @@ const handleSearch = async (e: React.FormEvent) => {
         
         try {
           const errorData = JSON.parse(errorText);
-          
-          // Unpack the custom error format from your global-exception.filter.ts
           if (errorData?.error?.message) {
             backendMsg = Array.isArray(errorData.error.message) 
               ? errorData.error.message.join(", ") 
               : errorData.error.message;
-          } 
-          // Fallback to standard NestJS format
-          else if (errorData?.message) {
+          } else if (errorData?.message) {
             backendMsg = Array.isArray(errorData.message) 
               ? errorData.message.join(", ") 
               : errorData.message;
@@ -273,12 +370,13 @@ const handleSearch = async (e: React.FormEvent) => {
     setGenderFilter("Any Gender");
     setFollowerFilter("Followers (Any)");
     setPlatformFilter("All Platforms");
+    setStateFilter("All States");
   };
 
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col items-center font-sans pb-10">
       
-      <div className="w-full max-w-2xl text-center mb-10 mt-6 relative z-20">
+      <div className="w-full max-w-2xl text-center mb-6 mt-6 relative z-20">
         <h1 className="font-serif font-medium tracking-tight text-gray-900 text-4xl md:text-5xl mb-6 drop-shadow-sm leading-tight">
           Find the perfect creator
         </h1>
@@ -318,36 +416,6 @@ const handleSearch = async (e: React.FormEvent) => {
           </button>
         </form>
 
-        {shouldShowFiltersBar && (
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mr-1">Refine:</span>
-            
-            {showGenderFilter && (
-              <CustomFilterDropdown 
-                value={genderFilter} 
-                options={["Any Gender", "Male", "Female"]} 
-                onChange={setGenderFilter} 
-              />
-            )}
-
-            {showFollowerFilter && (
-              <CustomFilterDropdown 
-                value={followerFilter} 
-                options={["Followers (Any)", "10k - 50k", "50k - 100k", "100k+"]} 
-                onChange={setFollowerFilter} 
-              />
-            )}
-
-            {showPlatformFilter && (
-              <CustomFilterDropdown 
-                value={platformFilter} 
-                options={["All Platforms", "Instagram", "TikTok"]} 
-                onChange={setPlatformFilter} 
-              />
-            )}
-          </div>
-        )}
-
         {error && (
           <div className="mt-4 text-red-500 text-sm font-medium">
             {error}
@@ -355,11 +423,48 @@ const handleSearch = async (e: React.FormEvent) => {
         )}
       </div>
 
+      {/* ===== STATIC FILTERS BAR ===== */}
+      {hasSearched && !error && (
+        <div className="w-full max-w-4xl mx-auto mt-2 mb-10 pb-6 border-b border-gray-100 animate-in fade-in slide-in-from-top-4 duration-300 relative z-40">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-4 px-4 md:px-0">
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider text-center md:text-left w-full md:w-auto mb-1 md:mb-0">
+              Refine By:
+            </span>
+            
+            <div className="grid grid-cols-2 md:flex md:flex-wrap items-center justify-center gap-2 md:gap-3 w-full md:w-auto">
+              <SearchableFilterDropdown
+                value={stateFilter}
+                options={NIGERIAN_STATES}
+                onChange={setStateFilter}
+                defaultOption="All States"
+              />
+
+              <CustomFilterDropdown 
+                value={genderFilter} 
+                options={["Any Gender", "Male", "Female"]} 
+                onChange={setGenderFilter} 
+              />
+
+              <CustomFilterDropdown 
+                value={followerFilter} 
+                options={["Followers (Any)", "10k - 50k", "50k - 100k", "100k+"]} 
+                onChange={setFollowerFilter} 
+              />
+
+              <CustomFilterDropdown 
+                value={platformFilter} 
+                options={["All Platforms", "Instagram", "TikTok"]} 
+                onChange={setPlatformFilter} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ===== EMPTY STATE CARTOON GRAPHIC ===== */}
       {!hasSearched && (
-        <div className="mt-12 flex flex-col items-center justify-center animate-in fade-in duration-700 opacity-90 relative z-10">
+        <div className="mt-6 flex flex-col items-center justify-center animate-in fade-in duration-700 opacity-90 relative z-10">
           <div className="relative w-48 h-48 mb-6 drop-shadow-sm">
-            {/* Cartoon Search Character */}
             <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
               <path d="M165.7 141.5C148.6 166.4 117.8 178.6 88 176.5C58.2 174.4 29.5 158 17.5 130.3C5.5 102.6 10.2 71.3 27.6 48.7C45 26.1 75.1 12.2 105.1 11.5C135.1 10.8 165 23.3 180.1 48.5C195.2 73.7 195.5 111.6 165.7 141.5Z" fill="#FFF5F0" />
               <rect x="70" y="90" width="60" height="70" rx="20" fill="#FFE2D6" />
@@ -394,7 +499,6 @@ const handleSearch = async (e: React.FormEvent) => {
             </div>
           )}
 
-          {/* Render real-time filtered results here */}
           {!isSearching && results.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 justify-items-center animate-in fade-in duration-500">
               {results.map((creator) => (

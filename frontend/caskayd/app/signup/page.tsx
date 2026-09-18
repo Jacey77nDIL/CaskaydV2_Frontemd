@@ -18,13 +18,16 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSignUp = async (e: React.FormEvent) => {
+ const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      const res = await fetch("/api/auth/register", {
+      // Pull the base URL from your .env file, fallback to localhost for safety
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+      const res = await fetch(`${baseUrl}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

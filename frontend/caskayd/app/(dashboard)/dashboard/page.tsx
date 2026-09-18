@@ -1,9 +1,9 @@
 // app/(dashboard)/dashboard/page.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { fetchWithAuth } from "@/lib/api"; // <-- We import the helper here
+import { fetchWithAuth } from "@/lib/api"; 
 
 interface Subscription {
   plan: string;
@@ -38,6 +38,88 @@ interface DashboardData {
   recentSavedCreators: RecentCreator[];
 }
 
+// --- Custom Platform Dropdown UI ---
+function CustomPlatformDropdown({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const platforms = [
+    {
+      name: "Instagram",
+      icon: (
+        <svg className="w-4 h-4 mr-2.5 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
+        </svg>
+      ),
+    },
+    {
+      name: "TikTok",
+      icon: (
+        <svg className="w-4 h-4 mr-2.5 text-black" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-1-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1.04-.1z" />
+        </svg>
+      ),
+    },
+  ];
+
+  const activePlatform = platforms.find((p) => p.name === value) || platforms[0];
+
+  return (
+    <div ref={dropdownRef} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#ff6b35]/20 focus:border-[#ff6b35] transition-all text-sm text-gray-900 cursor-pointer"
+      >
+        <div className="flex items-center">
+          {activePlatform.icon}
+          {activePlatform.name}
+        </div>
+        <span className="text-[10px] opacity-70">▼</span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1.5 w-full bg-white border border-gray-100 shadow-xl rounded-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-1 duration-200">
+          {platforms.map((opt) => (
+            <button
+              key={opt.name}
+              type="button"
+              onClick={() => {
+                onChange(opt.name);
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center px-4 py-3 text-sm transition-colors cursor-pointer ${
+                value === opt.name
+                  ? "bg-gray-50 text-[#ff6b35] font-bold"
+                  : "text-gray-700 hover:bg-gray-50 hover:text-[#ff6b35] font-medium"
+              }`}
+            >
+              {opt.icon}
+              {opt.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData>({
     campaignCount: 0,
@@ -49,14 +131,21 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-useEffect(() => {
+  // --- Modal & Toast State ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [suggestName, setSuggestName] = useState("");
+  const [suggestLink, setSuggestLink] = useState("");
+  const [suggestPlatform, setSuggestPlatform] = useState("Instagram");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+
+  useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const res = await fetchWithAuth("/api/dashboard", {
           method: "GET",
         });
 
-        // Unpack the exact NestJS validation error
         if (!res.ok) {
           const errorText = await res.text();
           let backendMsg = res.statusText;
@@ -110,17 +199,49 @@ useEffect(() => {
     });
   };
 
+  // --- Mock Submission Handler with Loading State ---
+  const handleSuggestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    setIsSubmitting(true);
+    
+    // Simulate network delay for the loading spinner
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    
+    setIsSubmitting(false);
+    setIsModalOpen(false);
+    setSuggestName("");
+    setSuggestLink("");
+    setSuggestPlatform("Instagram");
+    
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
+
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col font-sans text-gray-900">
+    <div className="w-full max-w-6xl mx-auto flex flex-col font-sans text-gray-900 relative">
       
       {/* Header Section */}
-      <div className="mb-10 mt-2">
-        <h1 className="font-serif font-medium tracking-tight text-gray-900 text-4xl md:text-5xl mb-3 drop-shadow-sm leading-tight">
-          Welcome back
-        </h1>
-        <p className="text-base text-gray-500 font-light max-w-xl">
-          Here is an overview of your current influencer marketing efforts and recent activity.
-        </p>
+      <div className="mb-10 mt-2 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h1 className="font-serif font-medium tracking-tight text-gray-900 text-4xl md:text-5xl mb-3 drop-shadow-sm leading-tight">
+            Welcome back
+          </h1>
+          <p className="text-base text-gray-500 font-light max-w-xl">
+            Here is an overview of your current influencer marketing efforts and recent activity.
+          </p>
+        </div>
+        
+        {/* Suggest Creator Button (Larger & Centered) */}
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center justify-center gap-2 bg-[#ff6b35] text-white hover:bg-[#e05a2b] transition-all px-6 py-3.5 rounded-xl shadow-md font-semibold text-base cursor-pointer whitespace-nowrap self-start md:self-auto"
+        >
+          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+          Suggest Creator
+        </button>
       </div>
 
       {error && (
@@ -274,6 +395,91 @@ useEffect(() => {
           </Link>
         </div>
       </div>
+
+      {/* Suggest Creator Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-gray-900/40 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 sm:p-8 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">Suggest a Creator</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <form onSubmit={handleSuggestSubmit} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Name</label>
+                <input
+                  type="text"
+                  required
+                  value={suggestName}
+                  onChange={(e) => setSuggestName(e.target.value)}
+                  placeholder="Creator's full name"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#ff6b35]/20 focus:border-[#ff6b35] transition-all text-sm text-gray-900"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Username / Link</label>
+                <input
+                  type="text"
+                  required
+                  value={suggestLink}
+                  onChange={(e) => setSuggestLink(e.target.value)}
+                  placeholder="@username or profile URL"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#ff6b35]/20 focus:border-[#ff6b35] transition-all text-sm text-gray-900"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Platform</label>
+                <CustomPlatformDropdown 
+                  value={suggestPlatform} 
+                  onChange={setSuggestPlatform} 
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex items-center justify-center min-w-[100px] bg-black text-white hover:bg-gray-800 font-semibold px-6 py-2.5 rounded-xl transition-all shadow-sm text-sm cursor-pointer disabled:opacity-75"
+                >
+                  {isSubmitting ? (
+                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    "Submit"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {showToast && (
+        <div className="fixed bottom-6 right-6 bg-gray-900 text-white px-5 py-3.5 rounded-xl shadow-lg z-50 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span className="text-sm font-medium">Creator suggested successfully!</span>
+        </div>
+      )}
 
     </div>
   );

@@ -199,6 +199,13 @@ export default function SettingsPage() {
     }
   };
 
+  // Filter out the TEAM plan and enforce the 2000 NGN price for the frontend display
+  const displayPlans = plans.length > 0 
+    ? plans
+        .filter(p => p.plan !== "TEAM")
+        .map(p => p.plan === "INDIVIDUAL" ? { ...p, amount: 2000 } : p)
+    : [{ plan: "INDIVIDUAL", amount: 2000, desc: "For independent marketers" }];
+
   return (
     <div className="w-full max-w-2xl mx-auto font-sans">
       <h1 className="font-serif font-medium tracking-tight text-gray-900 text-4xl md:text-5xl mb-8 drop-shadow-sm leading-tight">
@@ -310,7 +317,6 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 
-                {/* Always show the button so the UI matches the design, just disabled if already paused */}
                 {currentSub.autoRenew ? (
                   <button 
                     onClick={handlePauseSubscription}
@@ -331,27 +337,38 @@ export default function SettingsPage() {
             </>
           ) : (
             <>
-              <p className="text-sm text-gray-500 mb-6 leading-relaxed max-w-lg">
-                You currently do not have an active subscription. Choose a plan below to unlock full access to creator data and campaign tools.
+              <p className="text-sm text-gray-500 mb-6 leading-relaxed max-w-xl">
+                You currently do not have an active subscription. Upgrade today to unlock full access to creator data and campaign tools.
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(plans.length > 0 ? plans : [
-                  { plan: "INDIVIDUAL", amount: 7500, desc: "For independent marketers" }, 
-                  { plan: "TEAM", amount: 25000, desc: "For scaling agencies" }
-                ]).map((p, idx) => (
-                  <div key={idx} className="p-5 bg-gray-50 border border-gray-200 rounded-xl flex flex-col justify-between">
+              <div className="mt-2">
+                {displayPlans.map((p, idx) => (
+                  <div key={idx} className="p-6 sm:p-8 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-6 w-full">
                     <div>
-                      <h3 className="font-bold text-gray-900 text-base mb-1 uppercase">{p.plan}</h3>
-                      <p className="font-semibold text-[#ff6b35] mb-2">₦{p.amount.toLocaleString()}</p>
-                      <p className="text-xs text-gray-500 mb-4">{p.desc || "Unlock premium features."}</p>
+                      <h3 className="font-bold text-gray-900 text-lg uppercase tracking-tight mb-1">{p.plan} PLAN</h3>
+                      <div className="flex items-end gap-1 mb-2">
+                        <span className="font-semibold text-[#ff6b35] text-2xl leading-none">₦{p.amount.toLocaleString()}</span>
+                        <span className="text-gray-500 text-sm mb-0.5 font-medium">/ month</span>
+                      </div>
+                      <p className="text-sm text-gray-500">{p.desc || "Unlock premium features."}</p>
                     </div>
+                    
                     <button
                       onClick={() => handleSubscribe(p.plan)}
                       disabled={isProcessingPayment}
-                      className="w-full bg-black text-white hover:bg-gray-800 font-semibold py-2.5 rounded-lg transition-all text-sm cursor-pointer disabled:opacity-50"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 bg-black text-white hover:bg-gray-800 font-semibold px-8 py-3.5 rounded-xl transition-all text-sm cursor-pointer disabled:opacity-50 whitespace-nowrap shadow-sm"
                     >
-                      {isProcessingPayment ? "Redirecting..." : "Subscribe Now"}
+                      {isProcessingPayment ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-1 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Redirecting...
+                        </>
+                      ) : (
+                        "Subscribe Now"
+                      )}
                     </button>
                   </div>
                 ))}
