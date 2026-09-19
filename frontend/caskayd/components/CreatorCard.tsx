@@ -338,7 +338,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                     value={newCampaignName}
                     onChange={(e) => setNewCampaignName(e.target.value)}
                     placeholder="Enter campaign name..."
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#ff6b35] focus:ring-1 focus:ring-[#ff6b35]"
+                    className="w-full px-3 py-2 text-sm border text-black border-gray-200 rounded-lg focus:outline-none focus:border-[#ff6b35] focus:ring-1 focus:ring-[#ff6b35]"
                   />
                   <div className="flex gap-2 justify-end mt-1">
                     <button 
