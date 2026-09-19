@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import CreatorCard, { Creator, PlatformStats } from "../../../components/CreatorCard";
+import CreatorSplitVideoView from "../../../components/CreatorSplitVideoView";
 import { fetchWithAuth } from "@/lib/api";
 
 const NIGERIAN_STATES = [
@@ -206,6 +207,7 @@ export default function SearchPage() {
   const [followerFilter, setFollowerFilter] = useState("Followers (Any)");
   const [platformFilter, setPlatformFilter] = useState("All Platforms");
   const [stateFilter, setStateFilter] = useState("All States");
+  const [viewMode, setViewMode] = useState<"grid" | "split">("grid");
 
   // --- LIVE CLIENT-SIDE FILTERING ENGINE ---
   useEffect(() => {
@@ -500,11 +502,41 @@ export default function SearchPage() {
           )}
 
           {!isSearching && results.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 justify-items-center animate-in fade-in duration-500">
-              {results.map((creator) => (
-                <CreatorCard key={creator.id} creator={creator} />
-              ))}
-            </div>
+            <>
+              {/* View Mode Switcher Header */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-6 pb-4 border-b border-gray-100">
+                <div className="text-xs text-gray-500 font-medium">
+                  Showing <span className="font-bold text-gray-900">{results.length}</span> creators
+                </div>
+
+                <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("grid")}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${viewMode === "grid" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"}`}
+                  >
+                    ⊞ Grid View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("split")}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${viewMode === "split" ? "bg-white text-[#ff6b35] shadow-sm font-bold" : "text-gray-500 hover:text-gray-900"}`}
+                  >
+                    <span>🎬</span> Split Video View
+                  </button>
+                </div>
+              </div>
+
+              {viewMode === "grid" ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 justify-items-center animate-in fade-in duration-500">
+                  {results.map((creator) => (
+                    <CreatorCard key={creator.id} creator={creator} />
+                  ))}
+                </div>
+              ) : (
+                <CreatorSplitVideoView creators={results} />
+              )}
+            </>
           )}
 
           {!isSearching && results.length === 0 && (
