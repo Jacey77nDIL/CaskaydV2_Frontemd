@@ -136,6 +136,7 @@ export default function DashboardPage() {
   const [suggestName, setSuggestName] = useState("");
   const [suggestLink, setSuggestLink] = useState("");
   const [suggestPlatform, setSuggestPlatform] = useState("Instagram");
+  const [suggestError, setSuggestError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
@@ -199,23 +200,49 @@ export default function DashboardPage() {
     });
   };
 
-  // --- Mock Submission Handler with Loading State ---
+  // --- Real API Submission Handler ---
   const handleSuggestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     setIsSubmitting(true);
+    setSuggestError(null);
     
-    // Simulate network delay for the loading spinner
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    setIsSubmitting(false);
-    setIsModalOpen(false);
-    setSuggestName("");
-    setSuggestLink("");
-    setSuggestPlatform("Instagram");
-    
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    try {
+      const payload = {
+        name: suggestName,
+        username: suggestLink,
+        platform: suggestPlatform.toUpperCase(),
+        link: suggestLink.startsWith("http") ? suggestLink : undefined,
+      };
+
+      const res = await fetchWithAuth("/api/creator-suggestions", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        let errMsg = "Failed to submit suggestion.";
+        if (errorData?.message) {
+          errMsg = Array.isArray(errorData.message) ? errorData.message.join(", ") : errorData.message;
+        }
+        throw new Error(errMsg);
+      }
+
+      // Success
+      setIsModalOpen(false);
+      setSuggestName("");
+      setSuggestLink("");
+      setSuggestPlatform("Instagram");
+      
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      
+    } catch (err: any) {
+      setSuggestError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -232,9 +259,12 @@ export default function DashboardPage() {
           </p>
         </div>
         
-        {/* Suggest Creator Button (Larger & Centered) */}
+        {/* Suggest Creator Button */}
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setSuggestError(null);
+            setIsModalOpen(true);
+          }}
           className="flex items-center justify-center gap-2 bg-[#ff6b35] text-white hover:bg-[#e05a2b] transition-all px-6 py-3.5 rounded-xl shadow-md font-semibold text-base cursor-pointer whitespace-nowrap self-start md:self-auto"
         >
           <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -400,7 +430,7 @@ export default function DashboardPage() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-900/40 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 sm:p-8 animate-in slide-in-from-bottom-4 duration-300">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">Suggest a Creator</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -408,6 +438,13 @@ export default function DashboardPage() {
                 </svg>
               </button>
             </div>
+
+            {/* Error Message for Duplicates */}
+            {suggestError && (
+              <div className="p-3 mb-4 text-xs font-medium text-center text-red-600 bg-red-50 border border-red-200 rounded-xl">
+                {suggestError}
+              </div>
+            )}
             
             <form onSubmit={handleSuggestSubmit} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">

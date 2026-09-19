@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { fetchWithAuth } from "@/lib/api";
 
 export interface PlatformStats {
@@ -35,6 +36,9 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
   const [isSaved, setIsSaved] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Portal mount state
+  const [mounted, setMounted] = useState(false);
+
   // Campaign Modal States
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -42,6 +46,11 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
   const [addingToCampaignId, setAddingToCampaignId] = useState<string | null>(null);
   const [campaignError, setCampaignError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Inline Campaign Creation States
+  const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
+  const [newCampaignName, setNewCampaignName] = useState("");
+  const [creatingCampaignLoading, setCreatingCampaignLoading] = useState(false);
 
   const availablePlatforms = Object.keys(creator.stats) as Array<keyof typeof creator.stats>;
   const [activePlatform, setActivePlatform] = useState<keyof typeof creator.stats>(
@@ -51,6 +60,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
   const currentStats = creator.stats[activePlatform];
 
   useEffect(() => {
+    setMounted(true);
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
@@ -63,6 +73,8 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
   useEffect(() => {
     if (isCampaignModalOpen) {
       fetchCampaigns();
+      setIsCreatingCampaign(false);
+      setNewCampaignName("");
     } else {
       setSuccessMsg(null);
       setCampaignError(null);
@@ -75,7 +87,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
     try {
       const res = await fetchWithAuth("/api/campaigns");
       if (!res.ok) throw new Error("Failed to load campaigns");
-      
+
       const data = await res.json();
       const campaignList = Array.isArray(data) ? data : (data.data || []);
       setCampaigns(campaignList);
@@ -83,6 +95,38 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
       setCampaignError(err.message || "Could not load campaigns.");
     } finally {
       setLoadingCampaigns(false);
+    }
+  };
+
+  const handleCreateCampaign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCampaignName.trim()) return;
+
+    setCreatingCampaignLoading(true);
+    setCampaignError(null);
+
+    try {
+      const res = await fetchWithAuth("/api/campaigns", {
+        method: "POST",
+        body: JSON.stringify({ name: newCampaignName.trim() }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        let errMsg = "Failed to create campaign.";
+        if (errorData?.message) {
+          errMsg = Array.isArray(errorData.message) ? errorData.message.join(", ") : errorData.message;
+        }
+        throw new Error(errMsg);
+      }
+
+      setNewCampaignName("");
+      setIsCreatingCampaign(false);
+      await fetchCampaigns();
+    } catch (err: any) {
+      setCampaignError(err.message || "An error occurred creating the campaign");
+    } finally {
+      setCreatingCampaignLoading(false);
     }
   };
 
@@ -101,9 +145,9 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.message || "Failed to add creator to campaign");
       }
-      
+
       setSuccessMsg("Added successfully!");
-      
+
       setTimeout(() => {
         setIsCampaignModalOpen(false);
       }, 1500);
@@ -124,7 +168,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
       });
 
       if (!res.ok) throw new Error("Failed to save creator");
-      
+
       setIsSaved(true);
       setIsDropdownOpen(false);
     } catch (error) {
@@ -144,7 +188,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
             alt={creator.name}
             className="w-full h-full object-cover"
           />
-          
+
           {availablePlatforms.length > 1 && (
             <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full p-1 flex gap-1 shadow-sm">
               {availablePlatforms.map((platform) => (
@@ -183,8 +227,7 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
 
           {currentStats ? (
             <div className="flex flex-col gap-3 mb-5 animate-in fade-in duration-300">
-              
-              {/* Row 1: Handle gets full width */}
+
               <div className="flex flex-col bg-gray-50/50 p-2 rounded-lg border border-gray-100">
                 <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-0.5">Handle</span>
                 <span className="font-semibold text-gray-800 text-xs truncate w-full" title={currentStats.handle !== "N/A" ? `@${currentStats.handle}` : "N/A"}>
@@ -192,7 +235,6 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
                 </span>
               </div>
 
-              {/* Row 2: Grid for the rest */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="flex flex-col">
                   <span className="text-gray-400 text-[10px] uppercase font-bold tracking-wider mb-0.5">Followers</span>
@@ -247,10 +289,10 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
         </div>
       </div>
 
-      {/* Campaign Selection Modal */}
-      {isCampaignModalOpen && (
+      {/* Campaign Selection Modal - Transported via Portal to break out of all z-index limits */}
+      {mounted && isCampaignModalOpen && createPortal(
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"
           onClick={() => setIsCampaignModalOpen(false)}
         >
           <div 
@@ -274,44 +316,87 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
               <p className="text-sm text-gray-500 mt-1">Select a folder for {creator.name}</p>
             </div>
 
-            <div className="p-6 overflow-y-auto flex-1">
+            <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
+              
+              {!isCreatingCampaign ? (
+                <button 
+                  onClick={() => setIsCreatingCampaign(true)}
+                  className="w-full flex items-center justify-center gap-2 py-3 border border-dashed border-gray-300 rounded-xl text-sm font-semibold text-gray-600 hover:text-[#ff6b35] hover:border-[#ff6b35] hover:bg-[#ff6b35]/5 transition-all cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Create New Campaign
+                </button>
+              ) : (
+                <form onSubmit={handleCreateCampaign} className="w-full flex flex-col gap-2 p-3 bg-gray-50 border border-gray-200 rounded-xl animate-in slide-in-from-top-2 duration-200">
+                  <input
+                    autoFocus
+                    type="text"
+                    required
+                    minLength={2}
+                    value={newCampaignName}
+                    onChange={(e) => setNewCampaignName(e.target.value)}
+                    placeholder="Enter campaign name..."
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#ff6b35] focus:ring-1 focus:ring-[#ff6b35]"
+                  />
+                  <div className="flex gap-2 justify-end mt-1">
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setIsCreatingCampaign(false);
+                        setNewCampaignName("");
+                      }}
+                      className="text-xs font-semibold text-gray-500 hover:text-gray-800 px-3 py-1.5 transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit"
+                      disabled={creatingCampaignLoading || !newCampaignName.trim()}
+                      className="text-xs font-semibold bg-black text-white px-4 py-1.5 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      {creatingCampaignLoading ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </form>
+              )}
+
               {campaignError && (
-                <div className="mb-4 text-red-500 bg-red-50 p-3 rounded-lg border border-red-200 text-sm text-center">
+                <div className="text-red-500 bg-red-50 p-3 rounded-lg border border-red-200 text-sm text-center">
                   {campaignError}
                 </div>
               )}
 
               {successMsg && (
-                <div className="mb-4 text-green-700 bg-green-50 p-3 rounded-lg border border-green-200 text-sm text-center font-medium">
+                <div className="text-green-700 bg-green-50 p-3 rounded-lg border border-green-200 text-sm text-center font-medium">
                   {successMsg}
                 </div>
               )}
 
               {loadingCampaigns ? (
-                <div className="text-center py-8 text-sm text-gray-400">Loading campaigns...</div>
+                <div className="text-center py-6 text-sm text-gray-400">Loading campaigns...</div>
               ) : campaigns.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-sm text-gray-500 mb-4">You don't have any active campaigns.</p>
-                  <a href="/campaigns" className="text-[#ff6b35] font-semibold text-sm hover:underline">
-                    Create a campaign first
-                  </a>
+                <div className="text-center py-6">
+                  <p className="text-sm text-gray-500">You don't have any active campaigns.</p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 mt-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Your Campaigns</p>
                   {campaigns.map((camp) => (
                     <button
                       key={camp.id}
                       onClick={() => handleAddToCampaign(camp.id)}
                       disabled={addingToCampaignId === camp.id || !!successMsg}
-                      className="flex items-center justify-between w-full text-left px-4 py-3 bg-gray-50 hover:bg-[#ff6b35]/10 border border-gray-200 hover:border-[#ff6b35]/30 rounded-xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group"
+                      className="flex items-center justify-between w-full text-left px-4 py-3 bg-white hover:bg-[#ff6b35]/5 border border-gray-200 hover:border-[#ff6b35]/30 rounded-xl transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group shadow-sm"
                     >
-                      <span className="font-medium text-gray-800 group-hover:text-[#ff6b35] transition-colors">
+                      <span className="font-medium text-gray-800 group-hover:text-[#ff6b35] transition-colors truncate pr-2">
                         {camp.name}
                       </span>
                       {addingToCampaignId === camp.id ? (
-                        <span className="text-[#ff6b35] text-xs font-bold uppercase tracking-wider">Adding...</span>
+                        <span className="text-[#ff6b35] text-xs font-bold uppercase tracking-wider flex-shrink-0">Adding...</span>
                       ) : (
-                        <svg className="w-5 h-5 text-gray-400 group-hover:text-[#ff6b35] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-gray-300 group-hover:text-[#ff6b35] transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
                       )}
@@ -321,7 +406,8 @@ export default function CreatorCard({ creator }: { creator: Creator }) {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
