@@ -1,10 +1,15 @@
 // app/(dashboard)/layout.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { fetchWithAuth } from "@/lib/api";
+import SubscriptionModal from "@/components/SubscriptionModal";
+
+// Video space is hidden until real YouTube video link is ready.
+// When ready, simply paste the YouTube link here!
+const DEMO_YOUTUBE_URL: string | null = null;
 
 export default function DashboardLayout({
   children,
@@ -14,8 +19,60 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [hasActiveSub, setHasActiveSub] = useState<boolean | null>(null);
+  const [planAmount, setPlanAmount] = useState<number>(2000);
 
   const isActive = (path: string) => pathname === path;
+
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("caskayd_token") : null;
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    const checkSubscription = async () => {
+      // If user has transaction_id in URL, they are verifying payment on /settings
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("transaction_id") || params.get("transactionId")) {
+        return;
+      }
+
+      try {
+        const [meRes, plansRes] = await Promise.all([
+          fetchWithAuth("/api/subscriptions/me"),
+          fetchWithAuth("/api/subscriptions")
+        ]);
+
+        if (meRes.ok) {
+          const text = await meRes.text();
+          const meData = text ? JSON.parse(text) : null;
+          if (meData && meData.status === "ACTIVE") {
+            setHasActiveSub(true);
+          } else {
+            setHasActiveSub(false);
+          }
+        } else {
+          setHasActiveSub(false);
+        }
+
+        if (plansRes.ok) {
+          const text = await plansRes.text();
+          const plansData = text ? JSON.parse(text) : [];
+          const plansList = Array.isArray(plansData) ? plansData : (plansData.data || []);
+          const individualPlan = plansList.find((p: any) => p.plan === "INDIVIDUAL");
+          if (individualPlan && individualPlan.amount) {
+            setPlanAmount(individualPlan.amount);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check subscription status:", err);
+        setHasActiveSub(false);
+      }
+    };
+
+    checkSubscription();
+  }, [pathname, router]);
 
   // --- API Function: Logout ---
   const handleLogout = async () => {
@@ -43,6 +100,12 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-white font-sans text-gray-900 flex flex-col">
+      {/* Subscription Paywall Modal for users without an active subscription */}
+      <SubscriptionModal
+        isOpen={hasActiveSub === false}
+        youtubeUrl={DEMO_YOUTUBE_URL}
+        priceNgn={planAmount}
+      />
       {/* ===== Authenticated Navigation Bar ===== */}
       <nav className="sticky top-0 w-full bg-white border-b border-gray-200 z-50">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">

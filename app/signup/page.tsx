@@ -42,7 +42,44 @@ export default function SignUp() {
         throw new Error(data.message || "Failed to create account.");
       }
 
-      // Successfully registered -> send to login page
+      const registerData = await res.json().catch(() => ({}));
+
+      // If register endpoint returned tokens, save them directly
+      const token = registerData.accessToken || registerData.token;
+      if (token) {
+        localStorage.setItem("caskayd_token", token);
+        if (registerData.refreshToken) {
+          localStorage.setItem("caskayd_refresh_token", registerData.refreshToken);
+        }
+        router.push("/search");
+        return;
+      }
+
+      // Seamlessly auto-login immediately after registration if tokens weren't in register response
+      try {
+        const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (loginRes.ok) {
+          const loginData = await loginRes.json().catch(() => ({}));
+          const loginToken = loginData.accessToken || loginData.token;
+          if (loginToken) {
+            localStorage.setItem("caskayd_token", loginToken);
+          }
+          if (loginData.refreshToken) {
+            localStorage.setItem("caskayd_refresh_token", loginData.refreshToken);
+          }
+          router.push("/search");
+          return;
+        }
+      } catch (loginErr) {
+        console.error("Auto-login error after registration:", loginErr);
+      }
+
+      // Fallback to login page if auto-login did not complete
       router.push("/login");
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
