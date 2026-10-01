@@ -1,24 +1,76 @@
 // components/SubscriptionModal.tsx
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithAuth } from "@/lib/api";
+
+interface PlanConfig {
+  plan: "FREELANCER" | "INDIVIDUAL" | "TEAM";
+  displayName: string;
+  amount: number;
+  searches: string;
+  accounts: string;
+  perks: string[];
+  popular?: boolean;
+}
+
+const DEFAULT_PLANS: Record<string, PlanConfig> = {
+  FREELANCER: {
+    plan: "FREELANCER",
+    displayName: "Freelancer",
+    amount: 2000,
+    searches: "50 searches / period",
+    accounts: "1 user account",
+    perks: [
+      "50 creator searches per period",
+      "Full creator profiles",
+      "Direct contact info",
+      "Additional search packs available",
+    ],
+  },
+  INDIVIDUAL: {
+    plan: "INDIVIDUAL",
+    displayName: "Individual",
+    amount: 7500,
+    searches: "Unlimited searches",
+    accounts: "1 user account",
+    popular: true,
+    perks: [
+      "Unlimited creator searches",
+      "Full creator profiles",
+      "Direct contact info",
+      "Saved campaigns",
+    ],
+  },
+  TEAM: {
+    plan: "TEAM",
+    displayName: "Group",
+    amount: 50000,
+    searches: "Unlimited searches",
+    accounts: "10 total accounts",
+    perks: [
+      "Unlimited creator searches",
+      "10 accounts (owner + 9 members)",
+      "Team member management",
+      "Direct contact info & campaigns",
+    ],
+  },
+};
 
 interface SubscriptionModalProps {
   isOpen: boolean;
   /**
    * YouTube video URL or ID for the platform demo.
    * If null, empty string, or undefined, the video space is completely hidden.
-   * Whenever you are ready to add the real video, simply update this URL!
    */
   youtubeUrl?: string | null;
   /**
-   * Plan name to initialize, defaults to "INDIVIDUAL".
+   * Initial plan name to select, defaults to "INDIVIDUAL".
    */
   planName?: string;
   /**
-   * Price in NGN to display, defaults to 2000.
+   * Optional initial price override in NGN.
    */
   priceNgn?: number;
 }
@@ -31,12 +83,10 @@ function extractYouTubeId(urlOrId?: string | null): string | null {
   const trimmed = urlOrId.trim();
   if (!trimmed) return null;
 
-  // If it's already an 11-character video ID
   if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
     return trimmed;
   }
 
-  // Regex patterns for standard YouTube URLs
   const patterns = [
     /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/,
     /youtube\.com\/shorts\/([\w-]{11})/,
@@ -56,14 +106,69 @@ export default function SubscriptionModal({
   isOpen,
   youtubeUrl = null,
   planName = "INDIVIDUAL",
-  priceNgn = 2000,
+  priceNgn,
 }: SubscriptionModalProps) {
   const router = useRouter();
+  const [selectedPlan, setSelectedPlan] = useState<"FREELANCER" | "INDIVIDUAL" | "TEAM">(
+    (planName?.toUpperCase() as any) || "INDIVIDUAL"
+  );
+  const [plansData, setPlansData] = useState<Record<string, PlanConfig>>(DEFAULT_PLANS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Sync with available plans from API if possible
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+    const loadPlans = async () => {
+      try {
+        const res = await fetchWithAuth("/api/subscriptions");
+        if (res.ok) {
+          const text = await res.text();
+          const data = text ? JSON.parse(text) : [];
+          const list = Array.isArray(data) ? data : data.data || [];
+          if (Array.isArray(list) && list.length > 0 && isMounted) {
+            setPlansData((prev) => {
+              const updated = { ...prev };
+              list.forEach((p: any) => {
+                const key = p.plan?.toUpperCase();
+                if (updated[key]) {
+                  updated[key] = {
+                    ...updated[key],
+                    amount: p.amount ?? updated[key].amount,
+                    searches:
+                      p.searchLimit != null || p.includedSearches != null
+                        ? `${p.searchLimit ?? p.includedSearches} searches / period`
+                        : "Unlimited searches",
+                    accounts:
+                      p.accountLimit > 1
+                        ? `${p.accountLimit} total accounts`
+                        : "1 user account",
+                  };
+                }
+              });
+              return updated;
+            });
+          }
+        }
+      } catch (err) {
+        // Fall back to DEFAULT_PLANS silently
+      }
+    };
+
+    loadPlans();
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
+  const currentPlanConfig = plansData[selectedPlan] || DEFAULT_PLANS[selectedPlan] || DEFAULT_PLANS.INDIVIDUAL;
+  const currentPrice = priceNgn && selectedPlan === "INDIVIDUAL" && !plansData.INDIVIDUAL.amount
+    ? priceNgn
+    : currentPlanConfig.amount;
   const videoId = extractYouTubeId(youtubeUrl);
 
   const handleSubscribe = async () => {
@@ -73,12 +178,12 @@ export default function SubscriptionModal({
     try {
       const res = await fetchWithAuth("/api/subscriptions/initialize", {
         method: "POST",
-        body: JSON.stringify({ plan: planName.toUpperCase() }),
+        body: JSON.stringify({ plan: selectedPlan }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Failed to initialize payment.");
+        throw new Error(data.message || data.error?.message || "Failed to initialize payment.");
       }
 
       const data = await res.json();
@@ -119,14 +224,14 @@ export default function SubscriptionModal({
       role="dialog"
     >
       {/* Modal Container */}
-      <div 
-        className="relative w-full max-w-md bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-auto flex flex-col"
+      <div
+        className="relative w-full max-w-lg bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-auto flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Decorative Sunset Accent Bar */}
         <div className="h-1.5 w-full bg-gradient-to-r from-[#1d0b34] via-[#d14d1a] to-[#ffda73] flex-shrink-0" />
 
-        <div className="p-5 sm:p-6 flex flex-col">
+        <div className="p-5 sm:p-7 flex flex-col">
           {/* Header Badge & Brand */}
           <div className="flex items-center justify-between mb-2.5">
             <div className="flex items-center gap-2">
@@ -138,7 +243,7 @@ export default function SubscriptionModal({
               </span>
             </div>
             <div className="flex items-center gap-1 text-[11px] text-gray-500 font-medium bg-gray-50 px-2 py-0.5 rounded-full border border-gray-200">
-              <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
               <span>Instant Access</span>
@@ -150,7 +255,7 @@ export default function SubscriptionModal({
             Activate your membership to continue
           </h2>
           <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-            Unlock unlimited searches, verified creator demographics, and direct contact details.
+            Choose a plan to unlock creator discovery, verified contact details, and demographic insights.
           </p>
 
           {/* Optional YouTube Video Space (conditionally rendered) */}
@@ -177,51 +282,85 @@ export default function SubscriptionModal({
             </div>
           )}
 
-          {/* Plan Summary Card */}
+          {/* Plan Selector Buttons */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Select Plan</span>
+              <span className="text-[10px] text-gray-400">30-day billing period</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {(["FREELANCER", "INDIVIDUAL", "TEAM"] as const).map((planKey) => {
+                const plan = plansData[planKey];
+                const isSelected = selectedPlan === planKey;
+                return (
+                  <button
+                    key={planKey}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPlan(planKey);
+                      setError(null);
+                    }}
+                    className={`relative p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      isSelected
+                        ? "border-[#ff6b35] bg-orange-50/70 shadow-sm ring-1 ring-[#ff6b35]"
+                        : "border-gray-200 bg-gray-50/70 hover:bg-gray-100 hover:border-gray-300"
+                    }`}
+                  >
+                    {plan.popular && (
+                      <span className="absolute -top-2 right-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-[#ff6b35] text-white shadow-xs">
+                        Popular
+                      </span>
+                    )}
+                    <div>
+                      <div className={`text-xs font-bold ${isSelected ? "text-[#ff6b35]" : "text-gray-800"}`}>
+                        {plan.displayName}
+                      </div>
+                      <div className="text-sm font-extrabold text-gray-900 mt-0.5">
+                        ₦{plan.amount.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-gray-500 mt-1 line-clamp-1">
+                      {planKey === "FREELANCER" ? "50 searches" : "Unlimited"}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Active Plan Detail & Perks Card */}
           <div className="mt-3.5 p-3.5 rounded-xl bg-orange-50/50 border border-orange-100 flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#ff6b35]">
-                  {planName} PLAN
+                  {currentPlanConfig.displayName.toUpperCase()} PLAN
                 </span>
                 <h3 className="text-sm font-bold text-gray-900">
-                  Full Creator Search & Discovery
+                  {selectedPlan === "TEAM"
+                    ? "Full Access for 10 Accounts"
+                    : selectedPlan === "FREELANCER"
+                    ? "Essential Search Quota"
+                    : "Full Creator Search & Discovery"}
                 </h3>
               </div>
               <div className="text-right">
                 <span className="text-xl font-black text-gray-900 tracking-tight">
-                  ₦{priceNgn.toLocaleString()}
+                  ₦{currentPrice.toLocaleString()}
                 </span>
-                <span className="text-[11px] text-gray-500 font-medium">/mo</span>
+                <span className="text-[11px] text-gray-500 font-medium">/ 30 days</span>
               </div>
             </div>
 
             {/* Feature Perks */}
             <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-orange-200/50 text-[11px] text-gray-700">
-              <div className="flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Unlimited searches</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Full creator profiles</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Direct contact info</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-                <span>Saved campaigns</span>
-              </div>
+              {currentPlanConfig.perks.map((perk, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="truncate">{perk}</span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -234,10 +373,11 @@ export default function SubscriptionModal({
 
           {/* Action Buttons */}
           <div className="mt-4 flex flex-col gap-2">
+            {/* Orange Subscribe Button */}
             <button
               onClick={handleSubscribe}
               disabled={loading}
-              className="w-full bg-[#1c0512] hover:bg-[#2d0a1d] text-white font-semibold py-3 px-5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer disabled:opacity-50"
+              className="w-full bg-[#ff6b35] hover:bg-[#e05a2b] active:scale-[0.99] text-white font-semibold py-3 px-5 rounded-xl transition-all shadow-md hover:shadow-lg hover:shadow-orange-500/25 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -249,7 +389,7 @@ export default function SubscriptionModal({
                 </>
               ) : (
                 <>
-                  <span>Subscribe Now — ₦{priceNgn.toLocaleString()} / mo</span>
+                  <span>Subscribe Now — ₦{currentPrice.toLocaleString()} / 30 days</span>
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>

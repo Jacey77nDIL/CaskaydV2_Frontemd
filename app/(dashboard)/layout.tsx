@@ -20,7 +20,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasActiveSub, setHasActiveSub] = useState<boolean | null>(null);
-  const [planAmount, setPlanAmount] = useState<number>(2000);
+  const [planAmount, setPlanAmount] = useState<number>(7500);
 
   const isActive = (path: string) => pathname === path;
 
@@ -32,9 +32,13 @@ export default function DashboardLayout({
     }
 
     const checkSubscription = async () => {
-      // If user has transaction_id in URL, they are verifying payment on /settings
+      // If user has transaction_id in URL, ensure they are verifying payment on /settings
       const params = new URLSearchParams(window.location.search);
-      if (params.get("transaction_id") || params.get("transactionId")) {
+      const txId = params.get("transaction_id") || params.get("transactionId");
+      if (txId) {
+        if (pathname !== "/settings") {
+          router.replace(`/settings?${params.toString()}`);
+        }
         return;
       }
 
