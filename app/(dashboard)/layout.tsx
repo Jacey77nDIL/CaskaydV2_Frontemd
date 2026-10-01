@@ -51,8 +51,14 @@ export default function DashboardLayout({
         if (meRes.ok) {
           const text = await meRes.text();
           const meData = text ? JSON.parse(text) : null;
-          if (meData && meData.status === "ACTIVE") {
-            setHasActiveSub(true);
+          if (meData) {
+            if (!meData.isTrial && meData.status === "ACTIVE") {
+              setHasActiveSub(true);
+            } else if (meData.isTrial) {
+              setHasActiveSub(typeof meData.searchesRemaining === "number" ? meData.searchesRemaining > 0 : true);
+            } else {
+              setHasActiveSub(false);
+            }
           } else {
             setHasActiveSub(false);
           }

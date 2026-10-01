@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import CreatorCard, { Creator, PlatformStats } from "../../../components/CreatorCard";
 import CreatorSplitVideoView from "../../../components/CreatorSplitVideoView";
 import { fetchWithAuth } from "@/lib/api";
@@ -209,6 +210,42 @@ export default function SearchPage() {
   const [stateFilter, setStateFilter] = useState("All States");
   const [viewMode, setViewMode] = useState<"grid" | "split">("grid");
 
+  // Free Trial Subscription State
+  const [subData, setSubData] = useState<{
+    isTrial?: boolean;
+    freeSearchesUsed?: number;
+    freeSearchesLimit?: number;
+    searchesRemaining?: number;
+    status?: string;
+    plan?: string | null;
+  } | null>(null);
+  const [isBannerDismissed, setIsBannerDismissed] = useState<boolean>(false);
+
+  const refreshSubStatus = async () => {
+    try {
+      const res = await fetchWithAuth("/api/subscriptions/me");
+      if (res.ok) {
+        const data = await res.json();
+        setSubData(data);
+      }
+    } catch (err) {
+      console.error("Failed to load subscription info:", err);
+    }
+  };
+
+  useEffect(() => {
+    const dismissed = typeof window !== "undefined" && sessionStorage.getItem("caskayd_trial_banner_dismissed") === "true";
+    setIsBannerDismissed(dismissed);
+    refreshSubStatus();
+  }, []);
+
+  const handleDismissBanner = () => {
+    setIsBannerDismissed(true);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("caskayd_trial_banner_dismissed", "true");
+    }
+  };
+
   // --- LIVE CLIENT-SIDE FILTERING ENGINE ---
   useEffect(() => {
     let filtered = [...allResults];
@@ -355,9 +392,12 @@ export default function SearchPage() {
       const formattedResults = creatorList.map(transformApiToCreator);
       
       setAllResults(formattedResults);
+      // Immediately refresh remaining trial searches
+      await refreshSubStatus();
     } catch (err: any) {
       console.error("Search API Error:", err);
       setError(`Backend Error: ${err.message}`);
+      await refreshSubStatus();
     } finally {
       setIsSearching(false);
     }
@@ -378,6 +418,80 @@ export default function SearchPage() {
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col items-center font-sans pb-10">
       
+      {/* ===== FREE TRIAL INFORMATIONAL BANNER ===== */}
+      {subData?.isTrial && (!isBannerDismissed || (subData.searchesRemaining ?? 0) <= 0) && (
+        <div className="w-full max-w-4xl mx-auto mt-2 mb-6 bg-gradient-to-r from-orange-50/90 via-amber-50/80 to-orange-50/60 border border-orange-200/90 rounded-2xl p-4 sm:p-5 shadow-sm transition-all duration-300 relative animate-in fade-in slide-in-from-top-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-[#ff6b35]/10 border border-[#ff6b35]/20 flex items-center justify-center shrink-0 text-[#ff6b35]">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="text-[10px] font-black tracking-wider uppercase bg-[#ff6b35] text-white px-2 py-0.5 rounded-full">
+                    Free Trial
+                  </span>
+                  <span className="text-xs font-semibold text-gray-800">
+                    {(subData.searchesRemaining ?? 0) > 0
+                      ? `${subData.searchesRemaining} of ${subData.freeSearchesLimit ?? 5} free searches remaining`
+                      : "Free trial limit reached (5/5 searches used)"}
+                  </span>
+                </div>
+
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  {(subData.searchesRemaining ?? 0) > 0
+                    ? "Enjoy 5 trial searches with results capped to the top 10 creators. Upgrade to unlock full profiles, live reels & split video analysis."
+                    : "You've used all 5 trial searches. Upgrade to Freelancer (₦2,000/mo), Individual (₦7,500/mo), or Group to continue discovering creators."}
+                </p>
+
+                {/* Search Quota Progress Bar */}
+                <div className="mt-2.5 flex items-center gap-2 max-w-xs">
+                  <div className="flex-1 bg-orange-200/60 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-[#ff6b35] h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.min(100, Math.max(0, (((subData.freeSearchesUsed ?? 0) / (subData.freeSearchesLimit ?? 5)) * 100)))}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-bold text-gray-500 whitespace-nowrap">
+                    {subData.freeSearchesUsed ?? 0} / {subData.freeSearchesLimit ?? 5}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions: Upgrade CTA and Optional Dismiss [x] */}
+            <div className="flex items-center gap-2.5 self-end sm:self-center shrink-0">
+              <Link
+                href="/settings"
+                className="bg-[#ff6b35] hover:bg-[#e85a26] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              >
+                Choose Plan
+              </Link>
+
+              {/* Show [x] ONLY when searches remain */}
+              {(subData.searchesRemaining ?? 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDismissBanner}
+                  className="text-gray-400 hover:text-gray-700 p-1.5 rounded-lg hover:bg-orange-100/60 transition-colors cursor-pointer"
+                  title="Dismiss banner for this session"
+                  aria-label="Dismiss banner"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-2xl text-center mb-6 mt-6 relative z-20">
         <h1 className="font-serif font-medium tracking-tight text-gray-900 text-4xl md:text-5xl mb-6 drop-shadow-sm leading-tight">
           Find the perfect creator
@@ -535,6 +649,32 @@ export default function SearchPage() {
                 </div>
               ) : (
                 <CreatorSplitVideoView creators={results} />
+              )}
+
+              {/* Free Trial Results Capped Teaser */}
+              {subData?.isTrial && (
+                <div className="mt-8 w-full p-6 bg-gradient-to-br from-gray-50 to-orange-50/40 border border-orange-200/60 rounded-2xl text-center shadow-sm">
+                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-orange-100 text-[#ff6b35] mb-3">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-base font-bold text-gray-900 mb-1">
+                    Showing top {results.length} creators from your free trial search
+                  </h4>
+                  <p className="text-xs text-gray-500 max-w-md mx-auto mb-4">
+                    Free trial searches are capped at 10 creators. Upgrade your plan to unlock all matching creators, advanced contact details, and unlimited search queries.
+                  </p>
+                  <Link
+                    href="/settings"
+                    className="inline-flex items-center gap-2 bg-gray-900 hover:bg-black text-white text-xs font-semibold px-5 py-2.5 rounded-xl shadow-sm transition-all hover:scale-[1.02] cursor-pointer"
+                  >
+                    <span>Upgrade to view all creators</span>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </Link>
+                </div>
               )}
             </>
           )}
