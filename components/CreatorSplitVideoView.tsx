@@ -30,19 +30,22 @@ export default function CreatorSplitVideoView({
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [hasVideoError, setHasVideoError] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const activeCreator = creators[currentIndex] || creators[0];
 
   // Helper to get primary handle from Creator.stats
   const getActiveHandle = (creator: Creator) => {
-    if (creator.stats?.instagram?.handle) {
-      return { handle: creator.stats.instagram.handle, platform: "instagram" };
+    const igHandle = creator.stats?.instagram?.handle;
+    if (igHandle && igHandle.toLowerCase() !== "n/a" && igHandle.trim() !== "") {
+      return { handle: igHandle.trim(), platform: "instagram" };
     }
-    if (creator.stats?.tiktok?.handle) {
-      return { handle: creator.stats.tiktok.handle, platform: "tiktok" };
+    const ttHandle = creator.stats?.tiktok?.handle;
+    if (ttHandle && ttHandle.toLowerCase() !== "n/a" && ttHandle.trim() !== "") {
+      return { handle: ttHandle.trim(), platform: "tiktok" };
     }
-    return { handle: creator.name.toLowerCase().replace(/\s+/g, ""), platform: "instagram" };
+    return { handle: (creator.name || "").toLowerCase().replace(/[^a-z0-9._]/g, ""), platform: "instagram" };
   };
 
   // Keyboard navigation (Arrow Up / Down, J / K)
@@ -68,6 +71,12 @@ export default function CreatorSplitVideoView({
     let isMounted = true;
     setIsLoadingVideo(true);
     setVideoData(null);
+    setHasVideoError(false);
+
+    if (!handle || handle === "n/a") {
+      setIsLoadingVideo(false);
+      return;
+    }
 
     fetch(`/api/creators/live-video?handle=${encodeURIComponent(handle)}&platform=${platform}`)
       .then((res) => res.json())
@@ -88,12 +97,12 @@ export default function CreatorSplitVideoView({
 
   // Auto-play when video changes
   useEffect(() => {
-    if (videoRef.current && videoData?.directVideoUrl) {
+    if (videoRef.current && videoData?.directVideoUrl && !hasVideoError) {
       videoRef.current.currentTime = 0;
       videoRef.current.play().catch(() => {});
       setIsPlaying(true);
     }
-  }, [videoData?.directVideoUrl]);
+  }, [videoData?.directVideoUrl, hasVideoError]);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -208,7 +217,7 @@ export default function CreatorSplitVideoView({
               </div>
             )}
 
-            {!isLoadingVideo && videoData?.directVideoUrl ? (
+            {!isLoadingVideo && videoData?.directVideoUrl && !hasVideoError ? (
               <>
                 <video
                   ref={videoRef}
@@ -218,9 +227,23 @@ export default function CreatorSplitVideoView({
                   loop
                   playsInline
                   muted={isMuted}
+                  {...({ referrerPolicy: "no-referrer" } as React.HTMLAttributes<HTMLElement>)}
+                  onError={() => setHasVideoError(true)}
                   onClick={togglePlay}
                   className="relative z-10 w-full h-full object-cover cursor-pointer"
                 />
+
+                {/* Pause Overlay Indicator */}
+                {!isPlaying && (
+                  <div
+                    onClick={togglePlay}
+                    className="absolute inset-0 z-20 flex items-center justify-center bg-black/30 cursor-pointer"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white text-xl shadow-xl transition-transform hover:scale-110">
+                      ▶
+                    </div>
+                  </div>
+                )}
 
                 {/* Floating Sound Toggle Pill */}
                 <button
