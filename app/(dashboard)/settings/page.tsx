@@ -395,7 +395,39 @@ export default function SettingsPage() {
 
     fetchAllData();
     checkForPaymentCallback();
+    checkForDirectSubscribe();
   }, [fetchSubscriptionData]);
+
+  // --- Automatic Checkout Trigger for Selected Plan ---
+  const checkForDirectSubscribe = async () => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    let plan = params.get("subscribe") || params.get("plan");
+
+    if (!plan) {
+      try {
+        const saved = localStorage.getItem("caskayd_package_intent");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.plan && parsed.expiresAt > Date.now()) {
+            plan = parsed.plan;
+          }
+        }
+      } catch {}
+    }
+
+    if (plan && ["FREELANCER", "INDIVIDUAL", "TEAM"].includes(plan.toUpperCase())) {
+      localStorage.removeItem("caskayd_package_intent");
+      const targetPlan = plan.toUpperCase() as "FREELANCER" | "INDIVIDUAL" | "TEAM";
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete("subscribe");
+      newUrl.searchParams.delete("plan");
+      window.history.replaceState(null, "", newUrl.pathname + newUrl.search);
+      setSubMsg({ type: "success", text: `Initializing ${getPlanDisplayName(targetPlan)} subscription checkout...` });
+      await handleSubscribe(targetPlan);
+    }
+  };
 
   // --- Payment Callback Handler ---
   const checkForPaymentCallback = async () => {

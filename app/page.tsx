@@ -31,13 +31,22 @@ export default function Home() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePricingSelection = (tier: "individual" | "team") => {
+  const handlePricingSelection = (tier: "FREELANCER" | "INDIVIDUAL" | "TEAM") => {
+    const plan = tier.toUpperCase();
     const payload = {
-      tier,
+      plan,
+      tier: plan.toLowerCase(),
       expiresAt: Date.now() + 24 * 60 * 60 * 1000
     };
-    localStorage.setItem("caskayd_package_intent", JSON.stringify(payload));
-    router.push("/signup");
+    if (typeof window !== "undefined") {
+      localStorage.setItem("caskayd_package_intent", JSON.stringify(payload));
+      const token = localStorage.getItem("caskayd_token");
+      if (token) {
+        router.push(`/settings?subscribe=${plan}`);
+        return;
+      }
+    }
+    router.push(`/signup?plan=${plan}`);
   };
 
   useEffect(() => {
@@ -115,6 +124,12 @@ export default function Home() {
 
           <div className="flex-1 flex justify-end items-center gap-4">
             <button 
+              onClick={() => router.push("/login")}
+              className="text-white/90 hover:text-white font-medium text-sm md:text-base transition-colors cursor-pointer bg-transparent border-none hidden sm:inline-block"
+            >
+              Log in
+            </button>
+            <button 
               onClick={() => router.push("/signup")}
               className="bg-[#ff6b35] text-white hover:bg-[#e05a2b] font-semibold px-4 md:px-6 py-2 md:py-2.5 rounded-full hover:scale-105 transition-transform cursor-pointer text-sm md:text-base whitespace-nowrap"
             >
@@ -160,6 +175,15 @@ export default function Home() {
               className={`text-left font-medium py-2 hover:text-[#ff6b35] transition-colors cursor-pointer focus:outline-none ${view === "pricing" ? "text-orange-200 font-bold" : "text-white"}`}
             >
               Pricing
+            </button>
+            <button 
+              onClick={() => {
+                router.push("/login");
+                setIsMobileMenuOpen(false);
+              }} 
+              className="text-left text-white font-medium py-2 hover:text-[#ff6b35] transition-colors cursor-pointer focus:outline-none"
+            >
+              Log in
             </button>
             <button
               onClick={() => {
@@ -389,27 +413,87 @@ export default function Home() {
         </>
       ) : (
         /* ===== Pricing Section ===== */
-        <main className="relative z-10 flex flex-col items-center justify-center pt-16 pb-20 px-4 max-w-5xl mx-auto text-center">
-          <h1 className="font-serif text-4xl md:text-5xl font-normal text-white tracking-tight mb-8 drop-shadow-md">
+        <main className="relative z-10 flex flex-col items-center justify-center pt-16 pb-20 px-4 max-w-6xl mx-auto text-center">
+          <h1 className="font-serif text-4xl md:text-5xl font-normal text-white tracking-tight mb-4 drop-shadow-md">
             Prices that are easy on the pocket
           </h1>
+          <p className="text-white/80 text-sm md:text-base max-w-xl mx-auto mb-10 leading-relaxed font-sans">
+            Choose the plan that fits your growth. Need to upgrade or switch later? Do it anytime in your dashboard.
+          </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto w-full mb-12">
-            {/* Plan 1: Individual */}
-            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 text-left text-white shadow-xl flex flex-col justify-between">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-6xl mx-auto w-full mb-10">
+            {/* Plan 1: Freelancer */}
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 text-left text-white shadow-xl flex flex-col justify-between hover:border-white/40 transition-all">
               <div>
-                <div className="text-sm font-semibold tracking-wider text-orange-200 uppercase mb-2">
-                  Individual
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-semibold tracking-wider text-orange-200 uppercase">
+                    Freelancer
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/90">
+                    Starter
+                  </span>
                 </div>
-                <div className="flex items-baseline mb-4">
+                <div className="flex items-baseline mb-1">
+                  <span className="text-4xl font-black font-sans">₦2,000</span>
+                  <span className="text-sm text-white/70 ml-1">/ month</span>
+                </div>
+                <p className="text-xs text-white/70 mb-4">
+                  For solo recruiters and creators exploring discovery.
+                </p>
+                <button 
+                  onClick={() => handlePricingSelection("FREELANCER")}
+                  className="w-full bg-[#ff6b35] text-white hover:bg-[#e05a2b] font-bold py-3 px-6 rounded-xl transition-all text-center font-sans mb-6 cursor-pointer focus:outline-none shadow-md hover:scale-[1.02]"
+                >
+                  Choose Freelancer
+                </button>
+                <div className="border-t border-white/10 my-4"></div>
+                <div className="text-xs font-bold tracking-widest text-white/50 mb-4 uppercase">
+                  FEATURES
+                </div>
+                <ul className="space-y-3">
+                  {[
+                    "50 searches per 30-day period",
+                    "1 user account",
+                    "Full creator profiles & demographics",
+                    "Direct contact info",
+                    "Buy extra 50-search packs anytime (₦2,000)",
+                  ].map((perk, i) => (
+                    <li key={i} className="flex items-start gap-3 text-xs md:text-sm text-white/90">
+                      <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3.5" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <span>{perk}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Plan 2: Individual (Popular) */}
+            <div className="relative bg-white/15 backdrop-blur-2xl border-2 border-[#ff6b35] rounded-3xl p-6 text-left text-white shadow-2xl flex flex-col justify-between scale-[1.02] ring-2 ring-[#ff6b35]/40">
+              <span className="absolute -top-3 right-6 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-[#ff6b35] text-white shadow-md">
+                Most Popular
+              </span>
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-semibold tracking-wider text-orange-200 uppercase">
+                    Individual
+                  </div>
+                </div>
+                <div className="flex items-baseline mb-1">
                   <span className="text-4xl font-black font-sans">₦7,500</span>
                   <span className="text-sm text-white/70 ml-1">/ month</span>
                 </div>
+                <p className="text-xs text-white/70 mb-4">
+                  For independent marketers, managers, and brands.
+                </p>
                 <button 
-                  onClick={() => handlePricingSelection("individual")}
-                  className="w-full bg-[#ff6b35] text-white hover:bg-[#e05a2b] font-bold py-3 px-6 rounded-xl transition-all text-center font-sans mt-4 mb-6 cursor-pointer focus:outline-none"
+                  onClick={() => handlePricingSelection("INDIVIDUAL")}
+                  className="w-full bg-[#ff6b35] text-white hover:bg-[#e05a2b] font-bold py-3 px-6 rounded-xl transition-all text-center font-sans mb-6 cursor-pointer focus:outline-none shadow-lg shadow-orange-600/30 hover:scale-[1.02]"
                 >
-                  Get started
+                  Choose Individual
                 </button>
                 <div className="border-t border-white/10 my-4"></div>
                 <div className="text-xs font-bold tracking-widest text-white/50 mb-4 uppercase">
@@ -417,20 +501,15 @@ export default function Home() {
                 </div>
                 <ul className="space-y-3">
                   {[
-                    "Unlimited searches",
-                    "Full Profiles",
-                    "Contact Information",
+                    "Unlimited creator searches",
+                    "1 user account",
+                    "Full creator profiles & demographics",
+                    "Direct contact info",
                     "Unlimited saved campaigns",
                   ].map((perk, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm text-white/90">
-                      <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                        <svg
-                          className="w-3 h-3 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3.5"
-                          viewBox="0 0 24 24"
-                        >
+                    <li key={i} className="flex items-start gap-3 text-xs md:text-sm text-white/90">
+                      <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3.5" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
@@ -441,21 +520,29 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Plan 2: Team */}
-            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 text-left text-white shadow-xl flex flex-col justify-between">
+            {/* Plan 3: Group (Team) */}
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 text-left text-white shadow-xl flex flex-col justify-between hover:border-white/40 transition-all">
               <div>
-                <div className="text-sm font-semibold tracking-wider text-orange-200 uppercase mb-2">
-                  Team
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-semibold tracking-wider text-orange-200 uppercase">
+                    Group
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/90">
+                    Agencies & Teams
+                  </span>
                 </div>
-                <div className="flex items-baseline mb-4">
-                  <span className="text-4xl font-black font-sans">₦60,000</span>
+                <div className="flex items-baseline mb-1">
+                  <span className="text-4xl font-black font-sans">₦50,000</span>
                   <span className="text-sm text-white/70 ml-1">/ month</span>
                 </div>
+                <p className="text-xs text-white/70 mb-4">
+                  Full collaborative access for agencies and growth teams.
+                </p>
                 <button 
-                  onClick={() => handlePricingSelection("team")}
-                  className="w-full bg-[#ff6b35] text-white hover:bg-[#e05a2b] font-bold py-3 px-6 rounded-xl transition-all text-center font-sans mt-4 mb-6 cursor-pointer focus:outline-none"
+                  onClick={() => handlePricingSelection("TEAM")}
+                  className="w-full bg-[#ff6b35] text-white hover:bg-[#e05a2b] font-bold py-3 px-6 rounded-xl transition-all text-center font-sans mb-6 cursor-pointer focus:outline-none shadow-md hover:scale-[1.02]"
                 >
-                  Get started
+                  Choose Group
                 </button>
                 <div className="border-t border-white/10 my-4"></div>
                 <div className="text-xs font-bold tracking-widest text-white/50 mb-4 uppercase">
@@ -463,18 +550,15 @@ export default function Home() {
                 </div>
                 <ul className="space-y-3">
                   {[
-                    "Everything in the Individual plan",
-                    "5 seats per team",
+                    "Unlimited creator searches",
+                    "10 total accounts (Owner + 9 team members)",
+                    "Team member access management",
+                    "Full creator profiles & demographics",
+                    "Direct contact info & saved campaigns",
                   ].map((perk, i) => (
-                    <li key={i} className="flex items-center gap-3 text-sm text-white/90">
-                      <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                        <svg
-                          className="w-3 h-3 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3.5"
-                          viewBox="0 0 24 24"
-                        >
+                    <li key={i} className="flex items-start gap-3 text-xs md:text-sm text-white/90">
+                      <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3.5" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
@@ -484,6 +568,17 @@ export default function Home() {
                 </ul>
               </div>
             </div>
+          </div>
+
+          {/* Already have an account prompt */}
+          <div className="mb-10 text-sm text-white/80">
+            Already have a Caskayd account?{" "}
+            <button
+              onClick={() => router.push("/login")}
+              className="text-orange-200 underline font-bold hover:text-white cursor-pointer bg-transparent border-none"
+            >
+              Log in here to upgrade your plan
+            </button>
           </div>
 
           <div className="mt-4 mb-4">

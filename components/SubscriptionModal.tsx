@@ -116,6 +116,29 @@ export default function SubscriptionModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Sync plan from props or stored package intent
+  useEffect(() => {
+    if (planName) {
+      const p = planName.toUpperCase();
+      if (p === "FREELANCER" || p === "INDIVIDUAL" || p === "TEAM") {
+        setSelectedPlan(p as any);
+        return;
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("caskayd_package_intent");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.plan && ["FREELANCER", "INDIVIDUAL", "TEAM"].includes(parsed.plan)) {
+            setSelectedPlan(parsed.plan);
+          }
+        }
+      } catch {}
+    }
+  }, [planName, isOpen]);
+
   // Sync with available plans from API if possible
   useEffect(() => {
     if (!isOpen) return;

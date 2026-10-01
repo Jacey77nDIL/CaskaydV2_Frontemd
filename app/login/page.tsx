@@ -14,6 +14,28 @@ export default function Login() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      let plan = params.get("plan");
+      if (!plan) {
+        try {
+          const saved = localStorage.getItem("caskayd_package_intent");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed?.plan && parsed.expiresAt > Date.now()) {
+              plan = parsed.plan;
+            }
+          }
+        } catch {}
+      }
+      if (plan) {
+        setSelectedPlan(plan.toUpperCase());
+      }
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,9 +61,13 @@ export default function Login() {
         localStorage.setItem("caskayd_token", data.accessToken);
       } else if (data.token) {
         localStorage.setItem("caskayd_token", data.token);
-      } 
+      }
+      if (data.refreshToken) {
+        localStorage.setItem("caskayd_refresh_token", data.refreshToken);
+      }
 
-      router.push("/search");
+      const nextRoute = selectedPlan ? `/settings?subscribe=${selectedPlan}` : "/search";
+      router.push(nextRoute);
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
@@ -168,6 +194,13 @@ export default function Login() {
             Welcome back
           </h1>
 
+          {/* Selected Plan Badge */}
+          {selectedPlan && (
+            <div className="w-full bg-orange-50 border border-orange-200 text-[#ff6b35] text-xs rounded-xl p-2.5 mb-3 text-center font-medium">
+              ✨ Plan: <strong>{selectedPlan === "TEAM" ? "Group (₦50,000/mo)" : selectedPlan === "FREELANCER" ? "Freelancer (₦2,000/mo)" : "Individual (₦7,500/mo)"}</strong> — You&apos;ll be redirected straight to checkout after login.
+            </div>
+          )}
+
           {/* Error Alert */}
           {error && (
             <div className="w-full bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl p-3 mb-3 text-center">
@@ -210,9 +243,9 @@ export default function Login() {
           </form>
 
           <p className="text-sm text-gray-600 mt-4 text-center">
-            Don't have an account yet?{" "}
+            Don&apos;t have an account yet?{" "}
             <button
-              onClick={() => router.push("/signup")}
+              onClick={() => router.push(selectedPlan ? `/signup?plan=${selectedPlan}` : "/signup")}
               className="text-orange-600 font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer"
             >
               Sign up

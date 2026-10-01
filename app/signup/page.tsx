@@ -17,8 +17,30 @@ export default function SignUp() {
   // Loading & Error States
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
- const handleSignUp = async (e: React.FormEvent) => {
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      let plan = params.get("plan");
+      if (!plan) {
+        try {
+          const saved = localStorage.getItem("caskayd_package_intent");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed?.plan && parsed.expiresAt > Date.now()) {
+              plan = parsed.plan;
+            }
+          }
+        } catch {}
+      }
+      if (plan) {
+        setSelectedPlan(plan.toUpperCase());
+      }
+    }
+  }, []);
+
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -43,6 +65,7 @@ export default function SignUp() {
       }
 
       const registerData = await res.json().catch(() => ({}));
+      const nextRoute = selectedPlan ? `/settings?subscribe=${selectedPlan}` : "/search";
 
       // If register endpoint returned tokens, save them directly
       const token = registerData.accessToken || registerData.token;
@@ -51,7 +74,7 @@ export default function SignUp() {
         if (registerData.refreshToken) {
           localStorage.setItem("caskayd_refresh_token", registerData.refreshToken);
         }
-        router.push("/search");
+        router.push(nextRoute);
         return;
       }
 
@@ -72,7 +95,7 @@ export default function SignUp() {
           if (loginData.refreshToken) {
             localStorage.setItem("caskayd_refresh_token", loginData.refreshToken);
           }
-          router.push("/search");
+          router.push(nextRoute);
           return;
         }
       } catch (loginErr) {
@@ -80,7 +103,7 @@ export default function SignUp() {
       }
 
       // Fallback to login page if auto-login did not complete
-      router.push("/login");
+      router.push(selectedPlan ? `/login?plan=${selectedPlan}` : "/login");
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     } finally {
