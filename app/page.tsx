@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 
 export default function Home() {
@@ -595,9 +596,13 @@ export default function Home() {
       {/* ===== Minimalist Site Footer ===== */}
       <footer className="w-full border-t border-white/10 bg-[#1c0512] py-8 px-6 flex flex-col md:flex-row justify-between items-center text-sm text-white/60 relative z-40">
         <div className="flex items-center gap-4 mb-4 md:mb-0">
-          <a href="#" className="hover:text-white transition-colors">
+          <Link href="/privacy" className="hover:text-white transition-colors">
             Privacy policy
-          </a>
+          </Link>
+          <span className="text-white/20">|</span>
+          <Link href="/terms" className="hover:text-white transition-colors">
+            Terms of service
+          </Link>
           <span className="text-white/20">|</span>
           <span>Copyright © 2026 Caskayd</span>
         </div>
